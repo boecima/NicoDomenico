@@ -178,6 +178,18 @@ footer{padding-block:24px;font-size:13px;color:var(--ink-soft);display:flex;flex
 .soon .r{display:block;font-size:clamp(24px,3.6vw,56px);font-stretch:62%;font-weight:600;letter-spacing:.02em;margin-top:.14em;color:var(--ink-soft)}
 .soon p{max-width:32em;color:var(--ink-soft);margin:28px 0 0;font-size:clamp(17px,1.4vw,20px)}
 .soon .mark{width:120px;height:1px;background:var(--ink);margin:36px 0}
+.soon{min-height:auto}
+.studi{padding-block:clamp(40px,7vw,100px);border-top:1px solid var(--ink)}
+.studi h2{margin:0 0 28px}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(18px,3vw,40px)}
+.card{display:flex;flex-direction:column;gap:12px;text-decoration:none;color:inherit}
+.card img{display:block;width:100%;aspect-ratio:16/9;object-fit:cover;border:1px solid var(--ink);transition:transform .6s ease}
+.card:hover img{transform:scale(1.015)}
+.card h3{margin:0;font-size:clamp(22px,2.2vw,30px);font-weight:400;font-stretch:112%;line-height:1.15}
+.card .ptype{margin:0;color:var(--ink-soft);font-size:15px}
+.card p{margin:0;max-width:32em}
+.card .go{font-size:15px;text-decoration:underline;text-underline-offset:3px}
+@media (max-width:799px){.cards{grid-template-columns:1fr}}
 </style>
 </head>
 <body class="ready">
@@ -191,6 +203,25 @@ footer{padding-block:24px;font-size:13px;color:var(--ink-soft);display:flex;flex
   <p>Questa pagina è in costruzione. Nel frattempo, per pratiche edilizie, fine lavori e agibilità, scrivi a <a href="mailto:info@esempio.it">info@esempio.it</a>.</p>
   <p><a href="nicola.html">Vai al sito di Franco Nicola, architetto</a></p>
 </main>
+<section class="studi wrap" id="studi" aria-labelledby="studi-t">
+  <h2 id="studi-t">Studi dei luoghi</h2>
+  <div class="cards">
+    <a class="card" href="studi/panarano/">
+      <img src="assets/panarano_modello_3d.jpg" alt="Modello 3D del terreno tagliato lungo la sezione: il fiume sul fondo, la strada statale a mezza costa e la casa in alto" loading="lazy">
+      <h3>Dal fiume alla casa, Panarano</h3>
+      <p class="ptype">Modello 3D interattivo</p>
+      <p>Il terreno tagliato lungo una sezione dal fondo dell'alveo alla casa, con strada statale, acquedotto, catasto e progetto della particella. Si ruota, si cambia il piano di taglio e si leggono quote e pendenze.</p>
+      <span class="go">Apri il modello 3D</span>
+    </a>
+    <a class="card" href="studi/panarano/coni.html">
+      <img src="assets/panarano_coni_ottici.jpg" alt="Pianta con foto aerea e i coni ottici dei punti di osservazione" loading="lazy">
+      <h3>Coni ottici, Panarano</h3>
+      <p class="ptype">Punti di osservazione e foto</p>
+      <p>Si segnano sulla pianta i punti da cui sono state scattate le foto e la direzione di vista, si guarda il modello da quel punto con la foto sovrapposta, e si salva tutto su GitHub per ritrovarlo.</p>
+      <span class="go">Apri i coni ottici</span>
+    </a>
+  </div>
+</section>
 <footer class="wrap"><span>Pipicelli DomenicAntonio, soluzioni ed idee</span><span><a href="index.html">Home</a></span></footer>
 </body>
 </html>
