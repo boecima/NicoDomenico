@@ -14,7 +14,7 @@ Ogni pagina ha il suo stile dentro il file: si può aprire anche da sola, ma le 
 - `assets/render_*.jpg` — render dei progetti
 - `.nojekyll` — dice a GitHub Pages di pubblicare i file così come sono
 - `studi/panarano/index.html` — modello 3D della sezione fiume–SS374–casa a Panarano (foto aerea, catasto, progetto DXF, rilievo; coordinate di A e B nascoste). Collegato dalla pagina di Pipicelli.
-- `studi/panarano/coni.html` — coni ottici: punti di osservazione con foto sullo stesso modello; salva e carica `coni.json` e le foto su GitHub (cartella scelta nella pagina, con un token personale che resta nel browser).
+- `studi/coni-ottici/index.html` — editor dei coni ottici e piano fotografico (Coni_Ottici_Editor_4) con in più «Salva su GitHub» e «Apri da GitHub» per il progetto .json.
 - Entrambe si rigenerano dal repository privato dello studio (`studi/panarano_sezione/build.py`, cartella `pubblico/`).
 
 ## Pubblicare su GitHub Pages (istruzioni per Claude Code)

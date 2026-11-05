@@ -1,0 +1,684 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coni ottici · piano fotografico</title>
+<meta name="description" content="Editor dei coni ottici: immagine aerea, fotografie con punto di ripresa e cono, zone nascoste, piano fotografico in PDF.">
+<style>
+:root{
+  --bg:#eef0ee; --panel:#ffffff; --fg:#1d2420; --muted:#5f6b64; --line:#d3d9d4;
+  --accent:#2f5d50; --accent-fg:#ffffff; --warn:#b3261e; --field:#f6f8f6;
+  --f-ui:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --f-num:"Cascadia Mono","Consolas","SFMono-Regular",ui-monospace,monospace;
+  color-scheme:light;
+}
+html,body{height:100%}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 var(--f-ui)}
+.app{display:grid;grid-template-columns:360px 1fr;height:100%}
+aside{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+h1{font-size:17px;margin:0}
+p{text-align:justify}
+.sub{color:var(--muted);font-size:12.5px;margin:2px 0 0}
+h2{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 6px}
+section{display:flex;flex-direction:column;gap:6px}
+section[aria-disabled="true"]{opacity:.45;pointer-events:none}
+.shots{display:flex;flex-direction:column;gap:4px}
+.shot{display:grid;grid-template-columns:24px 104px 1fr;align-items:center;gap:8px;padding:5px 8px;border:1px solid var(--line);border-radius:6px;cursor:pointer;background:var(--field)}
+.shot[aria-current="true"]{border-color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.shot .more{grid-column:1/-1;display:flex;flex-direction:column;gap:6px;padding-top:4px;border-top:1px dashed var(--line)}
+.thumb{width:104px;height:78px;object-fit:cover;border-radius:4px;background:#ccc;display:block;cursor:zoom-in}
+.thumb:hover{outline:2px solid var(--accent);outline-offset:1px}
+.peek{position:fixed;top:16px;right:16px;width:33vw;min-width:320px;max-width:calc(100vw - 32px);background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 8px 28px rgba(0,0,0,.28);z-index:20;display:none;flex-direction:column;overflow:hidden}
+.peek[data-open="true"]{display:flex}
+.peek .ph{display:flex;align-items:center;gap:8px;padding:6px 8px 6px 10px;background:var(--field);border-bottom:1px solid var(--line);cursor:move;user-select:none;font-size:13px}
+.peek .ph strong{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.peek img{display:block;width:100%;max-height:70vh;object-fit:contain;background:#222}
+.peek .pf{font-size:12px;color:var(--muted);padding:5px 10px}
+.modal{position:fixed;inset:0;background:rgba(20,24,22,.6);z-index:30;display:none;place-items:center}
+.modal[data-open="true"]{display:grid}
+.mbox{background:var(--panel);border-radius:8px;box-shadow:0 12px 40px rgba(0,0,0,.35);display:flex;flex-direction:column;max-width:96vw;max-height:96vh;overflow:hidden}
+.mhead,.mfoot{display:flex;gap:8px;align-items:center;flex-wrap:wrap;padding:8px 12px}
+.mhead{border-bottom:1px solid var(--line)}.mfoot{border-top:1px solid var(--line)}
+.mhead strong{flex:1;min-width:160px}
+.mhead select{font:inherit;font-size:13px;padding:5px 6px;border:1px solid var(--line);border-radius:6px;background:var(--field);color:var(--fg)}
+.mfoot .hint{flex:1;min-width:200px}
+#cropSize{font:12.5px var(--f-num);color:var(--muted)}
+#cropCv{display:block;margin:0 auto;background:#222;touch-action:none}
+.mfoot .hint{flex-basis:100%;order:-1}
+.dot{width:22px;height:22px;border-radius:50%;color:#fff;font-weight:700;font-size:12px;display:grid;place-items:center}
+.shot input[type=text]{border:0;background:transparent;color:var(--fg);font:inherit;min-width:0;width:100%}
+.shot .meta{font-size:11.5px;color:var(--muted)}
+.row{display:grid;grid-template-columns:84px 1fr 54px;align-items:center;gap:8px}
+.row label{color:var(--muted);font-size:12.5px}
+.row output{font:12.5px var(--f-num);text-align:right;font-variant-numeric:tabular-nums}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+button,.filebtn{font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--field);color:var(--fg);cursor:pointer}
+button.small{padding:3px 7px;font-size:12px}
+button.primary,.filebtn.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+button.on{background:var(--warn);color:#fff;border-color:var(--warn)}
+button:disabled{opacity:.5;cursor:default}
+button:focus-visible,.filebtn:focus-within,input:focus-visible,textarea:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.filebtn input{display:none}
+.hint{font-size:12.5px;color:var(--muted);margin:0}
+.chk{display:flex;gap:6px;align-items:center;font-size:13px}
+textarea{width:100%;box-sizing:border-box;min-height:56px;font:13px var(--f-ui);background:var(--field);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px;text-align:justify;resize:vertical}
+input.txt{width:100%;box-sizing:border-box;font:13px var(--f-ui);background:var(--field);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px 6px}
+details summary{cursor:pointer;font-size:12.5px;color:var(--muted)}
+.dati{display:flex;flex-direction:column;gap:5px}
+.dati label{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:2px}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.notes{display:flex;flex-direction:column;gap:8px;margin-top:6px}
+.notes label{font-size:12.5px;color:var(--muted)}
+main{position:relative;overflow:hidden;min-width:0;background:var(--bg)}
+canvas{display:block;width:100%;height:100%;touch-action:none}
+.status{position:absolute;left:12px;bottom:10px;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 10px;font-size:12.5px;color:var(--muted);max-width:calc(100% - 24px)}
+.empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--muted);padding:24px}
+.empty div{max-width:420px}
+.empty p{text-align:center}
+@media (max-width:760px){.app{grid-template-columns:1fr;grid-template-rows:auto 70vh}aside{border-right:0;border-bottom:1px solid var(--line)}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <div>
+    <h1>Coni ottici · piano fotografico</h1>
+    <p class="sub">Carica l'immagine aerea, poi le fotografie: ogni foto ha il suo punto di ripresa e il suo cono sulla mappa. Le parti nascoste dietro alberi o edifici si segnano con un reticolo.</p>
+  </div>
+
+  <section id="secMap">
+    <h2>Immagine aerea</h2>
+    <div class="btns">
+      <label class="filebtn primary" id="mapBtn">Carica immagine aerea<input id="loadMap" type="file" accept="image/*"></label>
+      <label class="filebtn">Apri progetto<input id="loadJson" type="file" accept=".json,application/json"></label>
+    </div>
+    <label class="hint" for="pname">Nome del lavoro (usato nei nomi dei file)</label>
+    <input id="pname" class="txt" type="text" placeholder="es. Robertiello_Laviano">
+    <p class="hint">Ortofoto o mappa catastale su ortofoto, con il nord in alto. Si può sostituire in seguito: i coni restano al loro posto in proporzione.</p>
+  </section>
+
+  <section id="secShots" aria-disabled="true">
+    <h2>Fotografie</h2>
+    <div class="btns"><label class="filebtn primary">Carica fotografie<input id="loadPhotos" type="file" accept="image/*" multiple></label></div>
+    <div class="shots" id="shots"></div>
+    <p class="hint">Clicca una foto per selezionare il suo cono (e viceversa sulla mappa). Clicca la miniatura per vedere la foto grande in una finestra che resta aperta mentre posizioni il cono. Con le frecce cambi l'ordine: numeri e colori seguono la posizione nell'elenco.</p>
+  </section>
+
+  <section id="secCone" aria-disabled="true">
+    <h2>Cono della foto selezionata</h2>
+    <div class="row"><label for="sH">Direzione</label><input id="sH" type="range" min="0" max="359" step="1"><output id="oH"></output></div>
+    <div class="row"><label for="sF">Apertura</label><input id="sF" type="range" min="10" max="360" step="1"><output id="oF"></output></div>
+    <div class="row"><label for="sL">Profondità</label><input id="sL" type="range" min="20" max="2400" step="5"><output id="oL"></output></div>
+    <p class="hint">Sulla mappa puoi trascinare il cerchio numerato (sposta il punto) e i due pallini ai bordi del cono (direzione, apertura e profondità).</p>
+  </section>
+
+  <section id="secMask" aria-disabled="true">
+    <h2>Zone nascoste</h2>
+    <div class="btns">
+      <button id="maskBtn" type="button">Disegna zona</button>
+      <button id="maskClose" type="button">Chiudi zona</button>
+      <button id="maskUndo" type="button">Annulla ultima</button>
+      <button id="maskClear" type="button">Cancella tutte</button>
+    </div>
+    <p class="hint">Premi "Disegna zona", clicca i vertici attorno alla parte nascosta e chiudi con doppio clic, Invio o "Chiudi zona". La zona resta dentro il cono, campita con un reticolo grigio, e segue il cono quando lo sposti o lo ruoti. Esc annulla il disegno in corso.</p>
+  </section>
+
+  <section id="secView" aria-disabled="true">
+    <h2>Vista</h2>
+    <label class="chk"><input type="checkbox" id="onlySel"> Mostra solo la foto selezionata</label>
+    <label class="chk"><input type="checkbox" id="showN" checked> Freccia del nord</label>
+    <div class="btns"><button id="fit" type="button">Adatta alla finestra</button></div>
+  </section>
+
+  <section id="secExp" aria-disabled="true">
+    <h2>Salva ed esporta</h2>
+    <div class="row"><label for="sS">Stralci</label><input id="sS" type="range" min="30" max="100" step="5" value="75"><output id="oS">75%</output></div>
+    <p class="hint">Quanta parte dell'immagine aerea mostra lo stralcio accanto a ogni foto nel piano fotografico (75% = tre quarti dell'immagine, centrati sul cono). Gli stralci hanno tutti la stessa dimensione e la stessa scala e prendono i pixel dell'immagine originale senza ingrandirli; se un cono non ci sta, si allargano tutti quanto basta.</p>
+    <div class="btns">
+      <button id="expAll" class="primary" type="button">Esporta immagini PNG</button>
+      <button id="saveJson" type="button">Salva progetto</button>
+      <button id="makePdf" type="button">Piano fotografico (PDF)</button>
+    </div>
+    <p class="hint">"Esporta immagini" salva la planimetria con tutti i coni e una mappa per ogni foto con il solo suo cono. Il progetto (.json) contiene mappa, fotografie e tutte le regolazioni: si riapre con "Apri progetto". "Piano fotografico" apre una nuova scheda con le pagine A4 orizzontali già impaginate: lì premi "Stampa" e scegli "Salva come PDF".</p>
+  </section>
+
+  <section id="secGh">
+    <h2>GitHub</h2>
+    <details id="ghCfg">
+      <summary>Repository e chiave</summary>
+      <div class="dati">
+        <label>Repository<input id="ghRepo" class="txt" type="text" placeholder="utente/repository" autocomplete="off" spellcheck="false"></label>
+        <div class="grid2">
+          <label>Ramo<input id="ghBranch" class="txt" type="text" placeholder="main" autocomplete="off" spellcheck="false"></label>
+          <label>Cartella<input id="ghDir" class="txt" type="text" placeholder="coni-ottici" autocomplete="off" spellcheck="false"></label>
+        </div>
+        <label>Chiave (token)<input id="ghTok" class="txt" type="password" placeholder="resta solo in questo browser" autocomplete="off"></label>
+        <p class="hint">Token «fine-grained» creato su GitHub (Settings → Developer settings → Personal access tokens) con il solo permesso Contents: Read and write sul repository scelto. In un repository pubblico i progetti salvati li vede chiunque: per tenerli riservati usa un repository privato.</p>
+        <div class="btns"><button id="ghForget" type="button" class="small">Dimentica la chiave</button></div>
+      </div>
+    </details>
+    <div class="btns">
+      <button id="ghSave" type="button">Salva su GitHub</button>
+      <button id="ghList" type="button">Apri da GitHub</button>
+    </div>
+    <select id="ghFiles" class="txt" hidden aria-label="Progetti salvati su GitHub"></select>
+    <p class="hint" id="ghMsg">Salva lo stesso progetto di "Salva progetto" nel repository, con il nome del lavoro; "Apri da GitHub" elenca i progetti salvati.</p>
+  </section>
+
+  <section>
+    <h2>Note per Claude</h2>
+    <details>
+      <summary>Annotazioni da far controllare (una casella per gruppo)</summary>
+      <div class="notes">
+        <label>Immagine aerea e fotografie<textarea data-note="mappa_foto"></textarea></label>
+        <label>Coni<textarea data-note="coni"></textarea></label>
+        <label>Zone nascoste<textarea data-note="zone"></textarea></label>
+        <label>Dati delle foto (coordinate, data, direzione)<textarea data-note="dati"></textarea></label>
+        <label>Salvataggio ed esportazione<textarea data-note="esportazione"></textarea></label>
+      </div>
+    </details>
+    <div class="btns"><button id="saveNotes" type="button">Salva note</button></div>
+  </section>
+</aside>
+<main id="stage">
+  <canvas id="cv"></canvas>
+  <div class="empty" id="empty"><div><p><strong>Primo passo:</strong> carica l'immagine aerea del luogo con il pulsante "Carica immagine aerea", oppure apri un progetto salvato.</p><p>Poi carica le fotografie: ogni foto diventa un punto di ripresa con il suo cono.</p></div></div>
+  <div class="status" id="status">In attesa dell'immagine aerea</div>
+</main>
+<div class="modal" id="crop" role="dialog" aria-modal="true" aria-label="Ritaglia foto" data-open="false">
+  <div class="mbox">
+    <div class="mhead"><strong id="cropTit">Ritaglia foto</strong>
+      <label class="hint" for="cropRatio">Proporzione</label>
+      <select id="cropRatio">
+        <option value="free">Libera</option>
+        <option value="1.3333">4:3 orizzontale</option>
+        <option value="1.5">3:2 orizzontale</option>
+        <option value="1.7778">16:9 orizzontale</option>
+        <option value="1">1:1 quadrata</option>
+        <option value="0.75">3:4 verticale</option>
+      </select></div>
+    <canvas id="cropCv"></canvas>
+    <div class="mfoot"><span id="cropSize"></span>
+      <p class="hint">Trascina dentro il riquadro per spostarlo, dagli angoli per allargarlo o stringerlo; trascinando fuori ne disegni uno nuovo. La foto originale resta salvata: il ritaglio si può cambiare o togliere quando vuoi.</p>
+      <button type="button" id="cropReset">Foto intera</button><button type="button" id="cropCancel">Annulla</button><button type="button" class="primary" id="cropOk">Applica ritaglio</button></div>
+  </div>
+</div>
+<div class="peek" id="peek" role="dialog" aria-label="Anteprima della foto" data-open="false">
+  <div class="ph" id="peekBar"><span class="dot" id="peekDot"></span><strong id="peekTit"></strong>
+    <button class="small" type="button" id="peekPrev" title="Foto precedente">◀</button><button class="small" type="button" id="peekNext" title="Foto successiva">▶</button>
+    <button class="small" type="button" id="peekCrop" title="Ritaglia questa foto">Ritaglia</button>
+    <button class="small" type="button" id="peekClose" title="Chiudi (Esc)">✕</button></div>
+  <img id="peekImg" alt="">
+  <div class="pf">Trascina la barra in alto per spostare la finestra. Resta aperta mentre posizioni il cono e segue la foto selezionata.</div>
+</div>
+</div>
+
+<script>
+'use strict';
+// ---------- stato ----------
+const PAL=["#c81e28","#1e5ac8","#148c46","#963caa","#dc7800","#00838f","#6d4c41","#c2185b"];
+let P={name:"",map:null,shots:[],stralcio:75};   // map:{src,w,h}; shot:{id,nome,descr,src,thumb,file,x,y,h,fov,L,masks:[[ [d,a],... ]]}
+const IMGS={};                        // id -> Image (foto intere, non serializzate)
+let img=null, sel=-1, view={s:1,ox:0,oy:0}, drag=null, maskMode=false, cur=[], nextId=1;
+const cv=document.getElementById('cv'), ctx=cv.getContext('2d'), stage=document.getElementById('stage');
+const $=id=>document.getElementById(id);
+const status=t=>$('status').textContent=t;
+const rad=d=>d*Math.PI/180, deg=r=>r*180/Math.PI, norm=a=>((a%360)+360)%360;
+const col=i=>PAL[i%PAL.length];
+const hasMap=()=>!!img;
+
+function enable(on){['secShots','secCone','secMask','secView','secExp'].forEach(id=>$(id).setAttribute('aria-disabled',!on));
+  $('empty').style.display=on?'none':'grid';$('mapBtn').firstChild.textContent=on?'Cambia immagine aerea':'Carica immagine aerea';}
+
+// ---------- geometria ----------
+function conePath(c,s){c.beginPath();c.moveTo(s.x,s.y);
+  const N=64;for(let k=0;k<=N;k++){const a=rad(s.h-s.fov/2+s.fov*k/N);c.lineTo(s.x+s.L*Math.sin(a),s.y-s.L*Math.cos(a));}c.closePath();}
+function edgePts(s){const a1=rad(s.h-s.fov/2),a2=rad(s.h+s.fov/2);
+  return [{x:s.x+s.L*Math.sin(a1),y:s.y-s.L*Math.cos(a1)},{x:s.x+s.L*Math.sin(a2),y:s.y-s.L*Math.cos(a2)}]}
+// zone: coordinate polari relative al punto di ripresa e alla direzione del cono
+const toRel=(s,p)=>[Math.hypot(p[0]-s.x,p[1]-s.y),norm(deg(Math.atan2(p[0]-s.x,-(p[1]-s.y)))-s.h)];
+const toAbs=(s,r)=>{const a=rad(s.h+r[1]);return [s.x+r[0]*Math.sin(a),s.y-r[0]*Math.cos(a)]};
+
+// reticolo grigio fine, in coordinate immagine
+let hatchPat=null,hatchStep=0;
+function hatch(c){const step=Math.max(6,Math.round(img.width/260));
+  if(!hatchPat||hatchStep!==step){const t=document.createElement('canvas');t.width=t.height=step;const g=t.getContext('2d');
+    g.strokeStyle='rgba(60,60,60,.75)';g.lineWidth=Math.max(1,step/9);g.beginPath();
+    g.moveTo(0,0);g.lineTo(step,step);g.moveTo(0,step);g.lineTo(step,0);g.stroke();
+    hatchPat=c.createPattern(t,'repeat');hatchStep=step;}
+  return hatchPat;}
+
+const off=document.createElement('canvas'),octx=off.getContext('2d');
+function renderCone(target,s,i,dim){
+  off.width=img.width;off.height=img.height;octx.clearRect(0,0,off.width,off.height);
+  const c=dim?'#777777':col(i);
+  conePath(octx,s);octx.fillStyle=c;octx.globalAlpha=dim?.18:.32;octx.fill();octx.globalAlpha=1;
+  if(s.masks.length){octx.save();conePath(octx,s);octx.clip();
+    octx.globalAlpha=dim?.35:1;octx.fillStyle=hatch(octx);
+    for(const m of s.masks){octx.beginPath();m.forEach((r,k)=>{const p=toAbs(s,r);k?octx.lineTo(p[0],p[1]):octx.moveTo(p[0],p[1])});octx.closePath();octx.fill();
+      octx.strokeStyle='rgba(60,60,60,.8)';octx.lineWidth=Math.max(1.5,img.width/1400);octx.stroke();}
+    octx.restore();}
+  conePath(octx,s);octx.lineWidth=Math.max(3,img.width/700);octx.strokeStyle=c;octx.stroke();
+  target.drawImage(off,0,0);
+}
+function marker(c,s,i,r){c.beginPath();c.arc(s.x,s.y,r,0,7);c.fillStyle='#fff';c.fill();c.lineWidth=r/5;c.strokeStyle=col(i);c.stroke();
+  c.fillStyle=col(i);c.font=`bold ${r*1.2}px Segoe UI, Arial, sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(String(i+1),s.x,s.y+r*.05);}
+function north(c){const W=img.width,u=W/2000,x=W-100*u,y=120*u;
+  c.fillStyle='#141414';c.beginPath();c.moveTo(x,y-70*u);c.lineTo(x-28*u,y+20*u);c.lineTo(x,y);c.lineTo(x+28*u,y+20*u);c.closePath();c.fill();
+  c.font=`bold ${40*u}px Segoe UI, Arial, sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText('N',x,y+60*u);}
+function compose(c,only){c.drawImage(img,0,0);
+  P.shots.forEach((s,i)=>{if(only===undefined||only===i)renderCone(c,s,i,false)});
+  P.shots.forEach((s,i)=>{if(only===undefined||only===i)marker(c,s,i,img.width/70)});
+  if($('showN').checked)north(c);}
+
+function draw(){
+  const dpr=window.devicePixelRatio||1,w=stage.clientWidth,h=stage.clientHeight;
+  cv.width=w*dpr;cv.height=h*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,w,h);
+  if(!img)return;
+  ctx.save();ctx.translate(view.ox,view.oy);ctx.scale(view.s,view.s);
+  ctx.drawImage(img,0,0);
+  const only=$('onlySel').checked;
+  P.shots.forEach((s,i)=>{if(i!==sel&&!only)renderCone(ctx,s,i,true)});
+  if(P.shots[sel])renderCone(ctx,P.shots[sel],sel,false);
+  P.shots.forEach((s,i)=>{if(!only||i===sel)marker(ctx,s,i,14/view.s)});
+  if($('showN').checked)north(ctx);
+  const s=P.shots[sel];
+  if(s){edgePts(s).forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,7/view.s,0,7);ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=2.5/view.s;ctx.strokeStyle=col(sel);ctx.stroke();});}
+  if(cur.length){ctx.beginPath();cur.forEach((p,k)=>k?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));
+    ctx.strokeStyle='#b3261e';ctx.lineWidth=2/view.s;ctx.setLineDash([6/view.s,4/view.s]);ctx.stroke();ctx.setLineDash([]);
+    cur.forEach(p=>{ctx.beginPath();ctx.arc(p[0],p[1],4/view.s,0,7);ctx.fillStyle='#b3261e';ctx.fill();});}
+  ctx.restore();
+}
+function fit(){if(!img)return;const w=stage.clientWidth,h=stage.clientHeight;view.s=Math.min(w/img.width,h/img.height);view.ox=(w-img.width*view.s)/2;view.oy=(h-img.height*view.s)/2;draw();}
+const toImg=e=>{const r=cv.getBoundingClientRect();return{x:(e.clientX-r.left-view.ox)/view.s,y:(e.clientY-r.top-view.oy)/view.s}};
+
+// ---------- dati della foto: UTM 33N, direzione a parole, EXIF ----------
+function toUTM33(lat,lon){ // WGS84 -> UTM fuso 33N (EPSG:32633), formule di Snyder
+  const a=6378137,f=1/298.257223563,k0=0.9996,lon0=15,e2=f*(2-f),ep2=e2/(1-e2);
+  const p=rad(lat),l=rad(lon-lon0),sp=Math.sin(p),cp=Math.cos(p),tp=Math.tan(p);
+  const N=a/Math.sqrt(1-e2*sp*sp),T=tp*tp,C=ep2*cp*cp,A=cp*l;
+  const M=a*((1-e2/4-3*e2*e2/64-5*e2**3/256)*p-(3*e2/8+3*e2*e2/32+45*e2**3/1024)*Math.sin(2*p)+(15*e2*e2/256+45*e2**3/1024)*Math.sin(4*p)-(35*e2**3/3072)*Math.sin(6*p));
+  const E=500000+k0*N*(A+(1-T+C)*A**3/6+(5-18*T+T*T+72*C-58*ep2)*A**5/120);
+  const Nn=k0*(M+N*tp*(A*A/2+(5-T+9*C+4*C*C)*A**4/24+(61-58*T+T*T+600*C-330*ep2)*A**6/720));
+  return {E,N:Nn+(lat<0?1e7:0)};}
+const fmtM=v=>v.toLocaleString('it-IT',{minimumFractionDigits:1,maximumFractionDigits:1});
+const DIRS=['nord','nord-nord-est','nord-est','est-nord-est','est','est-sud-est','sud-est','sud-sud-est','sud','sud-sud-ovest','sud-ovest','ovest-sud-ovest','ovest','ovest-nord-ovest','nord-ovest','nord-nord-ovest'];
+const dirWord=h=>DIRS[Math.round(norm(h)/22.5)%16];
+const hasCoord=s=>typeof s.lat==='number'&&typeof s.lon==='number'&&!isNaN(s.lat)&&!isNaN(s.lon);
+function info(s){const u=$('utmTxt'),d=$('dirTxt'),ds=$('dtSrc');if(!u)return;
+  if(hasCoord(s)){const c=toUTM33(s.lat,s.lon);u.textContent=`UTM 33N (EPSG:32633): E ${fmtM(c.E)} m · N ${fmtM(c.N)} m`;}
+  else u.textContent='UTM 33N: inserisci latitudine e longitudine in gradi decimali (punto come separatore).';
+  ds.textContent=s.dt?(s.dtExif?'Data e ora lette dai metadati della foto.':'Data e ora inserite a mano.'):'Nessuna data nei metadati: inseriscila a mano.';
+  d.textContent=`Direzione di ripresa: ${dirWord(s.h)} (${Math.round(s.h)}°)`;}
+
+function parseExif(buf){ // legge DateTimeOriginal e GPS da un JPEG; restituisce {dt,lat,lon}
+  const out={};try{const v=new DataView(buf);if(v.getUint16(0)!==0xFFD8)return out;
+    let o=2;while(o+4<v.byteLength){const m=v.getUint16(o);if(m===0xFFE1&&v.getUint32(o+4)===0x45786966){readTiff(v,o+10,out);break;}
+      if((m&0xFF00)!==0xFF00||m===0xFFDA)break;o+=2+v.getUint16(o+2);}}catch(e){}
+  if(out.dt){const m=/^(\d{4}):(\d\d):(\d\d) (\d\d):(\d\d)/.exec(out.dt);out.dt=m?`${m[1]}-${m[2]}-${m[3]}T${m[4]}:${m[5]}`:null;}
+  return out;}
+function readTiff(v,t,out){const le=v.getUint16(t)===0x4949,g16=p=>v.getUint16(p,le),g32=p=>v.getUint32(p,le);
+  const ifd=(p,cb)=>{if(p<t||p+2>v.byteLength)return;const n=g16(p);for(let i=0;i<n;i++){const e=p+2+i*12;if(e+12>v.byteLength)break;cb(g16(e),g16(e+2),g32(e+4),e+8);}};
+  const str=(cnt,vp)=>{const p=cnt>4?t+g32(vp):vp;let s='';for(let i=0;i<cnt-1&&p+i<v.byteLength;i++)s+=String.fromCharCode(v.getUint8(p+i));return s;};
+  const rats=(cnt,vp)=>{const p=t+g32(vp),r=[];for(let i=0;i<cnt;i++){const d=g32(p+i*8+4);r.push(d?g32(p+i*8)/d:0);}return r;};
+  let exifP=0,gpsP=0,dt0=null;
+  ifd(t+g32(t+4),(tag,ty,cnt,vp)=>{if(tag===0x8769)exifP=g32(vp);if(tag===0x8825)gpsP=g32(vp);if(tag===0x0132)dt0=str(cnt,vp);});
+  if(exifP)ifd(t+exifP,(tag,ty,cnt,vp)=>{if(tag===0x9003)out.dt=str(cnt,vp);});
+  if(!out.dt&&dt0)out.dt=dt0;
+  if(gpsP){let la,lo,laR='N',loR='E';ifd(t+gpsP,(tag,ty,cnt,vp)=>{if(tag===1)laR=str(cnt,vp);if(tag===3)loR=str(cnt,vp);if(tag===2)la=rats(cnt,vp);if(tag===4)lo=rats(cnt,vp);});
+    const dms=a=>a&&a.length===3?a[0]+a[1]/60+a[2]/3600:null;
+    if(la&&lo&&dms(la)!==null&&dms(lo)!==null&&(dms(la)||dms(lo))){out.lat=+(dms(la)*(laR.trim()==='S'?-1:1)).toFixed(6);out.lon=+(dms(lo)*(loR.trim()==='W'?-1:1)).toFixed(6);}}}
+
+// ---------- elenco foto ----------
+function select(i){sel=i;list();sliders();draw();peekShow();}
+// ---------- anteprima grande della foto (finestra mobile, circa 1/3 dello schermo) ----------
+let peekOpen=false;
+function peekShow(){const pk=$('peek'),s=P.shots[sel];
+  if(!peekOpen||!s){pk.dataset.open='false';return;}
+  pk.dataset.open='true';$('peekImg').src=cropSrc(s);$('peekDot').textContent=sel+1;$('peekDot').style.background=col(sel);
+  $('peekTit').textContent=`Foto ${sel+1} · ${s.nome}`;$('peekPrev').disabled=sel<=0;$('peekNext').disabled=sel>=P.shots.length-1;}
+function openPeek(i){peekOpen=true;if(sel!==i)select(i);else peekShow();}
+function closePeek(){peekOpen=false;peekShow();}
+$('peekClose').onclick=closePeek;
+$('peekPrev').onclick=()=>{if(sel>0)select(sel-1)};
+$('peekNext').onclick=()=>{if(sel<P.shots.length-1)select(sel+1)};
+{let d=null;const bar=$('peekBar'),pk=$('peek');
+  bar.addEventListener('pointerdown',e=>{if(e.target.closest('button'))return;const r=pk.getBoundingClientRect();d={x:e.clientX-r.left,y:e.clientY-r.top};bar.setPointerCapture(e.pointerId);});
+  bar.addEventListener('pointermove',e=>{if(!d)return;const r=pk.getBoundingClientRect();
+    pk.style.left=Math.max(0,Math.min(innerWidth-r.width,e.clientX-d.x))+'px';pk.style.top=Math.max(0,Math.min(innerHeight-40,e.clientY-d.y))+'px';pk.style.right='auto';});
+  bar.addEventListener('pointerup',()=>{d=null});}
+$('peekCrop').onclick=()=>{if(P.shots[sel])openCrop(sel)};
+
+// ---------- ritaglio delle foto (non distruttivo: s.crop=[x,y,l,h] in frazioni della foto originale) ----------
+const CROPS={};
+function cropCanvas(s){const im=IMGS[s.id],[fx,fy,fw,fh]=s.crop,c=document.createElement('canvas');
+  c.width=Math.max(1,Math.round(im.width*fw));c.height=Math.max(1,Math.round(im.height*fh));
+  c.getContext('2d').drawImage(im,im.width*fx,im.height*fy,c.width,c.height,0,0,c.width,c.height);return c;}
+function cropSrc(s){if(!s.crop||!IMGS[s.id])return s.src;const k=s.crop.join(',');
+  if(!CROPS[s.id]||CROPS[s.id].k!==k)CROPS[s.id]={k,src:cropCanvas(s).toDataURL('image/jpeg',.92)};return CROPS[s.id].src;}
+let CE=null; // editor di ritaglio aperto: {i,im,r:{x,y,w,h},ratio,k,drag}
+const clamp=(v,a,b)=>Math.max(a,Math.min(b,v));
+function openCrop(i){const s=P.shots[i],im=IMGS[s.id];if(!s||!im)return;
+  const W=im.width,H=im.height;
+  CE={i,im,ratio:null,k:1,drag:null,r:s.crop?{x:s.crop[0]*W,y:s.crop[1]*H,w:s.crop[2]*W,h:s.crop[3]*H}:{x:0,y:0,w:W,h:H}};
+  $('cropTit').textContent=`Ritaglia foto ${i+1} · ${s.nome}`;
+  $('cropRatio').value=s.crop?'free':'1.3333';if(!s.crop)setRatio();
+  $('crop').dataset.open='true';sizeCrop();}
+function sizeCrop(){if(!CE)return;const im=CE.im,cv2=$('cropCv'),dpr=window.devicePixelRatio||1;
+  const maxW=Math.min(innerWidth*.94,1600),maxH=innerHeight*.96-170;CE.k=Math.min(maxW/im.width,maxH/im.height);
+  const w=Math.round(im.width*CE.k),h=Math.round(im.height*CE.k);cv2.style.width=w+'px';cv2.style.height=h+'px';cv2.parentElement.style.width=Math.max(w,640)+'px';cv2.width=w*dpr;cv2.height=h*dpr;drawCrop();}
+function drawCrop(){if(!CE)return;const cv2=$('cropCv'),g=cv2.getContext('2d'),dpr=window.devicePixelRatio||1,k=CE.k,{im,r}=CE;
+  g.setTransform(dpr,0,0,dpr,0,0);const W=im.width*k,H=im.height*k;g.clearRect(0,0,W,H);g.drawImage(im,0,0,W,H);
+  const x=r.x*k,y=r.y*k,w=r.w*k,h=r.h*k;
+  g.fillStyle='rgba(0,0,0,.58)';g.beginPath();g.rect(0,0,W,H);g.rect(x,y,w,h);g.fill('evenodd');
+  g.strokeStyle='rgba(255,255,255,.45)';g.lineWidth=1;g.beginPath();
+  for(const t of[1/3,2/3]){g.moveTo(x+w*t,y);g.lineTo(x+w*t,y+h);g.moveTo(x,y+h*t);g.lineTo(x+w,y+h*t);}g.stroke();
+  g.strokeStyle='#fff';g.lineWidth=2;g.strokeRect(x,y,w,h);
+  g.fillStyle='#fff';for(const [cx,cy] of [[x,y],[x+w,y],[x,y+h],[x+w,y+h]])g.fillRect(cx-6,cy-6,12,12);
+  const q=r.w/r.h;$('cropSize').textContent=`${Math.round(r.w)} × ${Math.round(r.h)} px · ${q>=1?'orizzontale':'verticale'} ${q.toFixed(2).replace('.',',')}:1`;}
+function setRatio(){if(!CE)return;const v=$('cropRatio').value,W=CE.im.width,H=CE.im.height;CE.ratio=v==='free'?null:+v;
+  if(CE.ratio){const cx=CE.r.x+CE.r.w/2,cy=CE.r.y+CE.r.h/2,w=Math.min(W,H*CE.ratio),h=w/CE.ratio;
+    CE.r={x:clamp(cx-w/2,0,W-w),y:clamp(cy-h/2,0,H-h),w,h};}
+  drawCrop();}
+$('cropRatio').onchange=setRatio;
+function resizeFrom(ax,ay,px,py){const W=CE.im.width,H=CE.im.height,min=Math.min(W,H)*.05;
+  px=clamp(px,0,W);py=clamp(py,0,H);const sx=px<ax?-1:1,sy=py<ay?-1:1,maxW=sx<0?ax:W-ax,maxH=sy<0?ay:H-ay;
+  let w=Math.abs(px-ax),h=Math.abs(py-ay);
+  if(CE.ratio){w=Math.max(w,h*CE.ratio,min);w=Math.min(w,maxW,maxH*CE.ratio);h=w/CE.ratio;}
+  else{w=clamp(w,Math.min(min,maxW),maxW);h=clamp(h,Math.min(min,maxH),maxH);}
+  CE.r={x:sx<0?ax-w:ax,y:sy<0?ay-h:ay,w,h};}
+{const cv2=$('cropCv'),pt=e=>{const b=cv2.getBoundingClientRect();return{x:(e.clientX-b.left)/CE.k,y:(e.clientY-b.top)/CE.k}};
+  cv2.addEventListener('pointerdown',e=>{if(!CE)return;const p=pt(e),r=CE.r,tol=14/CE.k;
+    const cs=[[r.x,r.y,r.x+r.w,r.y+r.h],[r.x+r.w,r.y,r.x,r.y+r.h],[r.x,r.y+r.h,r.x+r.w,r.y],[r.x+r.w,r.y+r.h,r.x,r.y]];
+    const c=cs.find(q=>Math.abs(p.x-q[0])<tol&&Math.abs(p.y-q[1])<tol);
+    if(c)CE.drag={t:'c',ax:c[2],ay:c[3]};
+    else if(p.x>r.x&&p.x<r.x+r.w&&p.y>r.y&&p.y<r.y+r.h)CE.drag={t:'m',dx:p.x-r.x,dy:p.y-r.y};
+    else CE.drag={t:'c',ax:clamp(p.x,0,CE.im.width),ay:clamp(p.y,0,CE.im.height)};
+    cv2.setPointerCapture(e.pointerId);});
+  cv2.addEventListener('pointermove',e=>{if(!CE)return;const p=pt(e),r=CE.r,tol=14/CE.k;
+    if(!CE.drag){const near=[[r.x,r.y],[r.x+r.w,r.y],[r.x,r.y+r.h],[r.x+r.w,r.y+r.h]].findIndex(q=>Math.abs(p.x-q[0])<tol&&Math.abs(p.y-q[1])<tol);
+      cv2.style.cursor=near===0||near===3?'nwse-resize':near===1||near===2?'nesw-resize':(p.x>r.x&&p.x<r.x+r.w&&p.y>r.y&&p.y<r.y+r.h)?'move':'crosshair';return;}
+    if(CE.drag.t==='m'){CE.r.x=clamp(p.x-CE.drag.dx,0,CE.im.width-r.w);CE.r.y=clamp(p.y-CE.drag.dy,0,CE.im.height-r.h);}
+    else resizeFrom(CE.drag.ax,CE.drag.ay,p.x,p.y);
+    drawCrop();});
+  cv2.addEventListener('pointerup',()=>{if(CE)CE.drag=null;});}
+function thumbOf(s){return makeThumb(s.crop?cropCanvas(s):IMGS[s.id]);}
+function closeCrop(){CE=null;$('crop').dataset.open='false';}
+function applyCrop(){if(!CE)return;const s=P.shots[CE.i],W=CE.im.width,H=CE.im.height,r=CE.r;
+  const full=r.x<1&&r.y<1&&r.w>W-2&&r.h>H-2,f=v=>+v.toFixed(5);
+  s.crop=full?null:[f(r.x/W),f(r.y/H),f(r.w/W),f(r.h/H)];s.thumb=thumbOf(s);const i=CE.i;closeCrop();
+  list();peekShow();status(s.crop?`Foto ${i+1} ritagliata (${Math.round(r.w)} × ${Math.round(r.h)} px)`:`Foto ${i+1}: foto intera`);}
+$('cropOk').onclick=applyCrop;$('cropCancel').onclick=closeCrop;
+$('cropReset').onclick=()=>{if(!CE)return;$('cropRatio').value='free';CE.ratio=null;CE.r={x:0,y:0,w:CE.im.width,h:CE.im.height};drawCrop();};
+$('crop').addEventListener('pointerdown',e=>{if(e.target===$('crop'))closeCrop();});
+addEventListener('resize',()=>{if(CE)sizeCrop();});
+function list(){
+  const el=$('shots');el.innerHTML='';
+  P.shots.forEach((s,i)=>{const d=document.createElement('div');d.className='shot';d.setAttribute('aria-current',i===sel);
+    d.innerHTML=`<span class="dot" style="background:${col(i)}">${i+1}</span><img class="thumb" alt="">
+      <div><input type="text" aria-label="Nome foto ${i+1}"><div class="meta"></div></div>`;
+    const th=d.querySelector('.thumb');th.src=s.thumb;th.title='Clic per vedere la foto grande';th.alt='Foto '+(i+1)+': clic per ingrandire';
+    th.onclick=ev=>{ev.stopPropagation();openPeek(i);};
+    const nm=d.querySelector('input');nm.value=s.nome;nm.oninput=ev=>{s.nome=ev.target.value};
+    d.querySelector('.meta').textContent=(s.file?s.file+' · ':'')+(s.masks.length===1?'1 zona nascosta':s.masks.length?s.masks.length+' zone nascoste':'nessuna zona nascosta')+(s.crop?' · ritagliata':'')+(hasCoord(s)?'':' · coordinate mancanti');
+    if(i===sel){const m=document.createElement('div');m.className='more';
+      m.innerHTML=`<textarea placeholder="Descrizione della foto (compare nel piano fotografico)"></textarea>
+        <div class="btns"><button class="small" type="button" data-a="up" ${i===0?'disabled':''}>▲ Su</button><button class="small" type="button" data-a="down" ${i===P.shots.length-1?'disabled':''}>▼ Giù</button>
+        <button class="small" type="button" data-a="crop">Ritaglia</button>
+        <label class="filebtn small" style="padding:3px 7px;font-size:12px">Sostituisci foto<input type="file" accept="image/*" data-a="replace"></label>
+        <button class="small" type="button" data-a="del">Elimina</button></div>`;
+      const ta=m.querySelector('textarea');ta.value=s.descr||'';ta.oninput=ev=>{s.descr=ev.target.value};
+      const dati=document.createElement('div');dati.className='dati';
+      dati.innerHTML=`<div class="grid2"><label>Latitudine WGS84<input class="txt" type="number" step="0.000001" min="-90" max="90" data-f="lat" placeholder="40.786123"></label>
+        <label>Longitudine WGS84<input class="txt" type="number" step="0.000001" min="-180" max="180" data-f="lon" placeholder="15.291456"></label></div>
+        <div class="meta" id="utmTxt"></div>
+        <label>Data e ora dello scatto<input class="txt" type="datetime-local" data-f="dt"></label>
+        <div class="meta" id="dtSrc"></div><div class="meta" id="dirTxt"></div>`;
+      dati.querySelectorAll('[data-f]').forEach(inp=>{const f=inp.dataset.f;inp.value=s[f]??'';
+        inp.oninput=ev=>{const v=ev.target.value;s[f]=f==='dt'?v:(v===''?null:+v);if(f==='dt')s.dtExif=false;info(s);};});
+      m.insertBefore(dati,m.querySelector('.btns'));
+      setTimeout(()=>info(s),0);
+      m.querySelector('[data-a=up]').onclick=ev=>{ev.stopPropagation();move(i,-1)};
+      m.querySelector('[data-a=down]').onclick=ev=>{ev.stopPropagation();move(i,1)};
+      m.querySelector('[data-a=del]').onclick=ev=>{ev.stopPropagation();if(confirm(`Eliminare la foto ${i+1} "${s.nome}" con il suo cono?`)){P.shots.splice(i,1);delete IMGS[s.id];select(Math.min(sel,P.shots.length-1));}};
+      m.querySelector('[data-a=crop]').onclick=ev=>{ev.stopPropagation();openCrop(i)};
+      m.querySelector('[data-a=replace]').onchange=ev=>{const f=ev.target.files[0];if(f)readPhoto(f).then(r=>{Object.assign(s,{src:r.src,thumb:r.thumb,file:f.name,crop:null});IMGS[s.id]=r.image;
+        if(r.exif.dt&&(!s.dt||s.dtExif)){s.dt=r.exif.dt;s.dtExif=true;}
+        if(!hasCoord(s)&&typeof r.exif.lat==='number'){s.lat=r.exif.lat;s.lon=r.exif.lon;}
+        list();status('Foto sostituita: '+f.name);});};
+      d.appendChild(m);}
+    d.onclick=ev=>{if(ev.target.closest('.more'))return;if(sel!==i)select(i);};
+    el.appendChild(d);});
+}
+function move(i,dir){const j=i+dir;if(j<0||j>=P.shots.length)return;[P.shots[i],P.shots[j]]=[P.shots[j],P.shots[i]];select(j);}
+function sliders(){const s=P.shots[sel];if(!s||!img)return;
+  $('sL').max=Math.round(Math.hypot(img.width,img.height));
+  $('sH').value=s.h;$('sF').value=s.fov;$('sL').value=s.L;
+  $('oH').textContent=Math.round(s.h)+'°';$('oF').textContent=Math.round(s.fov)+'°';$('oL').textContent=Math.round(s.L);
+  const d=$('dirTxt');if(d)d.textContent=`Direzione di ripresa: ${dirWord(s.h)} (${Math.round(s.h)}°)`;}
+['sH','sF','sL'].forEach(id=>$(id).addEventListener('input',e=>{const s=P.shots[sel];if(!s)return;
+  const v=+e.target.value;if(id==='sH')s.h=v;if(id==='sF')s.fov=v;if(id==='sL')s.L=v;sliders();draw();}));
+
+// ---------- caricamento immagini ----------
+const readFile=f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f);});
+const loadImage=src=>new Promise((res,rej)=>{const n=new Image();n.onload=()=>res(n);n.onerror=rej;n.src=src;});
+function makeThumb(image,w=240){const k=w/image.width,c=document.createElement('canvas');c.width=w;c.height=Math.round(image.height*k);
+  c.getContext('2d').drawImage(image,0,0,c.width,c.height);return c.toDataURL('image/jpeg',.8);}
+const readBuf=f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsArrayBuffer(f);});
+async function readPhoto(f){let src=await readFile(f);const image=await loadImage(src);
+  const exif=/jpe?g$/i.test(f.name)||f.type==='image/jpeg'?parseExif(await readBuf(f)):{};
+  // le foto molto grandi si riducono a 2400 px sul lato lungo, per tenere leggero il progetto
+  const M=2400;if(Math.max(image.width,image.height)>M){const k=M/Math.max(image.width,image.height),c=document.createElement('canvas');
+    c.width=Math.round(image.width*k);c.height=Math.round(image.height*k);c.getContext('2d').drawImage(image,0,0,c.width,c.height);src=c.toDataURL('image/jpeg',.88);}
+  return {src,thumb:makeThumb(image),image:await loadImage(src),exif};}
+
+async function setMap(src,fileName){const n=await loadImage(src);
+  if(img){const k=n.width/img.width;P.shots.forEach(s=>{s.x*=k;s.y*=k;s.L*=k;s.masks=s.masks.map(m=>m.map(r=>[r[0]*k,r[1]]));});}
+  img=n;P.map={src,w:n.width,h:n.height};hatchPat=null;enable(true);fit();sliders();list();
+  status(fileName?'Immagine aerea caricata: '+fileName:'Immagine aerea caricata');}
+$('loadMap').onchange=async e=>{const f=e.target.files[0];if(!f)return;await setMap(await readFile(f),f.name);e.target.value='';};
+
+$('loadPhotos').onchange=async e=>{const files=[...e.target.files];if(!files.length||!img)return;
+  status('Caricamento di '+files.length+' foto...');
+  files.sort((a,b)=>a.name.localeCompare(b.name,'it',{numeric:true}));
+  for(const f of files){const r=await readPhoto(f);const k=P.shots.length;
+    const s={id:nextId++,nome:f.name.replace(/\.[^.]+$/,''),descr:'',src:r.src,thumb:r.thumb,file:f.name,
+      x:img.width*(0.3+0.08*(k%6)),y:img.height*(0.3+0.08*Math.floor(k/6)%6),h:0,fov:90,L:Math.round(img.width/8),masks:[],
+      lat:r.exif.lat??null,lon:r.exif.lon??null,dt:r.exif.dt||'',dtExif:!!r.exif.dt};
+    IMGS[s.id]=r.image;P.shots.push(s);}
+  const gps=P.shots.filter(s=>hasCoord(s)).length;
+  select(P.shots.length-1);status(files.length+' foto caricate'+(gps?` (${gps} con coordinate GPS dai metadati)`:'')+': trascina ogni cerchio numerato sul punto di ripresa');e.target.value='';};
+
+// ---------- mouse sulla mappa ----------
+cv.addEventListener('pointerdown',e=>{if(!img)return;
+  const p=toImg(e),s=P.shots[sel],tol=12/view.s;
+  if(maskMode){cur.push([p.x,p.y]);draw();return;}
+  if(s){const [a,b]=edgePts(s);
+    if(Math.hypot(p.x-a.x,p.y-a.y)<tol)drag={t:'L'};else if(Math.hypot(p.x-b.x,p.y-b.y)<tol)drag={t:'R'};}
+  if(!drag){const hit=P.shots.findIndex(q=>Math.hypot(p.x-q.x,p.y-q.y)<16/view.s);
+    if(hit>=0){if(hit!==sel){sel=hit;list();sliders();}drag={t:'C',dx:p.x-P.shots[hit].x,dy:p.y-P.shots[hit].y};}
+    else drag={t:'pan',x:e.clientX,y:e.clientY,ox:view.ox,oy:view.oy};}
+  cv.setPointerCapture(e.pointerId);draw();});
+cv.addEventListener('pointermove',e=>{if(!drag)return;const p=toImg(e),s=P.shots[sel];
+  if(drag.t==='pan'){view.ox=drag.ox+e.clientX-drag.x;view.oy=drag.oy+e.clientY-drag.y;}
+  else if(drag.t==='C'){s.x=p.x-drag.dx;s.y=p.y-drag.dy;}
+  else{const a=norm(deg(Math.atan2(p.x-s.x,-(p.y-s.y))));s.L=Math.max(20,Math.hypot(p.x-s.x,p.y-s.y));
+    if(drag.t==='L'){const r=s.h+s.fov/2;let f=norm(r-a);if(f<10)f=10;s.fov=f;s.h=norm(a+f/2);}
+    else{const l=s.h-s.fov/2;let f=norm(a-l);if(f<10)f=10;s.fov=f;s.h=norm(l+f/2);}
+    sliders();}
+  draw();});
+cv.addEventListener('pointerup',()=>{drag=null});
+cv.addEventListener('dblclick',()=>{if(maskMode)closeMask()});
+cv.addEventListener('wheel',e=>{if(!img)return;e.preventDefault();const r=cv.getBoundingClientRect(),mx=e.clientX-r.left,my=e.clientY-r.top;
+  const k=e.deltaY<0?1.15:1/1.15;view.ox=mx-(mx-view.ox)*k;view.oy=my-(my-view.oy)*k;view.s*=k;draw();},{passive:false});
+
+// ---------- zone nascoste ----------
+function setMaskMode(on){if(on&&!P.shots[sel]){status('Seleziona prima una foto');return;}
+  maskMode=on;$('maskBtn').classList.toggle('on',on);$('maskBtn').textContent=on?'Disegno zona attivo':'Disegna zona';
+  cv.style.cursor=on?'crosshair':'default';if(!on)cur=[];status(on?'Clicca i vertici della zona nascosta, poi doppio clic o Invio per chiudere':'Pronto');draw();}
+function closeMask(){const s=P.shots[sel];
+  if(s&&cur.length>=3){const pts=cur.filter((p,k)=>k===0||Math.hypot(p[0]-cur[k-1][0],p[1]-cur[k-1][1])>1);
+    if(pts.length>=3){s.masks.push(pts.map(p=>toRel(s,p)));list();}}
+  cur=[];setMaskMode(false);if(s)status('Zona nascosta aggiunta alla foto '+(sel+1));}
+$('maskBtn').onclick=()=>setMaskMode(!maskMode);
+$('maskClose').onclick=closeMask;
+$('maskUndo').onclick=()=>{if(P.shots[sel]){P.shots[sel].masks.pop();list();draw();}};
+$('maskClear').onclick=()=>{if(P.shots[sel]){P.shots[sel].masks=[];list();draw();}};
+document.addEventListener('keydown',e=>{if(CE){if(e.key==='Escape')closeCrop();if(e.key==='Enter'&&!e.target.matches('select'))applyCrop();return;}
+  if(e.target.matches('input,textarea'))return;
+  if(e.key==='Escape'&&!maskMode&&peekOpen)closePeek();
+  if(e.key==='Escape'&&maskMode)setMaskMode(false);if(e.key==='Enter'&&maskMode)closeMask();});
+$('onlySel').onchange=draw;$('showN').onchange=draw;$('fit').onclick=fit;
+$('pname').oninput=e=>{P.name=e.target.value};
+
+// ---------- salva ed esporta ----------
+function download(name,blob){const a=document.createElement('a');a.download=name;a.href=URL.createObjectURL(blob);document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);}
+const safe=s=>(s||'coni').replace(/[^\w\-]+/g,'_');
+function exportPNG(name,only){return new Promise(res=>{const c=document.createElement('canvas');c.width=img.width;c.height=img.height;
+  compose(c.getContext('2d'),only);c.toBlob(b=>{download(name,b);setTimeout(res,350);},'image/png');});}
+$('expAll').onclick=async()=>{if(!img)return;status('Esportazione in corso...');
+  await exportPNG(safe(P.name)+'_Planimetria_coni_ottici.png');
+  for(let i=0;i<P.shots.length;i++)await exportPNG(`${safe(P.name)}_Cono_Foto_${String(i+1).padStart(2,'0')}.png`,i);
+  status('Immagini salvate nella cartella Download');};
+function notesObj(){const o={};document.querySelectorAll('[data-note]').forEach(t=>{o[t.dataset.note]=t.value});return o;}
+function setNotes(o){document.querySelectorAll('[data-note]').forEach(t=>{t.value=(o||{})[t.dataset.note]||''});}
+$('saveJson').onclick=()=>{if(!img)return;
+  const out={versione:4,name:P.name,map:P.map,stralcio:P.stralcio,shots:P.shots,note:notesObj(),salvato:new Date().toISOString()};
+  download(safe(P.name)+'_coni_ottici.json',new Blob([JSON.stringify(out)],{type:'application/json'}));status('Progetto salvato nella cartella Download');};
+$('loadJson').onchange=async e=>{const f=e.target.files[0];if(!f)return;e.target.value='';
+  try{await apriProgetto(JSON.parse(await f.text()),f.name);}
+  catch(err){alert('Non riesco ad aprire il progetto: '+err.message);}};
+async function apriProgetto(d,nome){
+  {if(!d.map||!d.map.src)throw new Error('Il file non contiene l\'immagine aerea (progetto di una versione precedente).');
+    status('Apertura del progetto...');
+    P={name:d.name||'',map:null,shots:[],stralcio:d.stralcio||75};$('pname').value=P.name;img=null;showS();
+    for(const s of d.shots||[]){s.id=nextId++;s.masks=s.masks||[];s.descr=s.descr||'';IMGS[s.id]=await loadImage(s.src);if(!s.thumb)s.thumb=makeThumb(IMGS[s.id]);P.shots.push(s);}
+    await setMap(d.map.src);setNotes(d.note);select(P.shots.length?0:-1);status('Progetto aperto: '+nome);}
+}
+// ---------- piano fotografico (PDF tramite stampa del browser) ----------
+function jpegOf(c,q){return c.toDataURL('image/jpeg',q)}
+function mapAll(){const c=document.createElement('canvas');c.width=img.width;c.height=img.height;compose(c.getContext('2d'));return jpegOf(c,.85);}
+// ---------- stralci: stessa dimensione e stessa scala per tutte le foto ----------
+function coneBox(s){ // rettangolo che contiene cono e cerchio numerato
+  const r=img.width/70*1.3,pts=[[s.x-r,s.y-r],[s.x+r,s.y+r]];
+  for(let k=0;k<=48;k++){const a=rad(s.h-s.fov/2+s.fov*k/48);pts.push([s.x+s.L*Math.sin(a),s.y-s.L*Math.cos(a)]);}
+  const xs=pts.map(p=>p[0]),ys=pts.map(p=>p[1]);
+  return {x0:Math.min(...xs),x1:Math.max(...xs),y0:Math.min(...ys),y1:Math.max(...ys)};}
+function stralcioSize(){ // riquadro 4:3 pari alla percentuale scelta dell'immagine aerea
+  const k=(P.stralcio||75)/100,W=img.width,H=img.height;
+  let w=Math.min(W*k,H*k*4/3),base=w;
+  P.shots.forEach(s=>{const b=coneBox(s);w=Math.max(w,(b.x1-b.x0)*1.08,(b.y1-b.y0)*1.08*4/3);});
+  w=Math.min(w,W,H*4/3);
+  return {w,h:w*3/4,allargato:w>base+0.5};}
+function mapOne(i,S){ // stralcio centrato sul cono della foto i, in pixel originali (mai ingranditi)
+  const s=P.shots[i],b=coneBox(s),w=S.w,h=S.h,cx=(b.x0+b.x1)/2,cy=(b.y0+b.y1)/2;
+  const x0=Math.max(0,Math.min(img.width-w,cx-w/2)),y0=Math.max(0,Math.min(img.height-h,cy-h/2));
+  const full=document.createElement('canvas');full.width=img.width;full.height=img.height;compose(full.getContext('2d'),i);
+  const W=Math.min(2400,Math.round(w)),c=document.createElement('canvas');c.width=W;c.height=Math.round(W*h/w);
+  const g=c.getContext('2d');g.imageSmoothingQuality='high';g.drawImage(full,x0,y0,w,h,0,0,c.width,c.height);return jpegOf(c,.9);}
+const esc=t=>String(t??'').replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+const fmtDt=v=>{if(!v)return '—';const d=new Date(v);return isNaN(d)?v:d.toLocaleDateString('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'})+' ore '+d.toLocaleTimeString('it-IT',{hour:'2-digit',minute:'2-digit'});};
+const fmtDeg=v=>typeof v==='number'?v.toFixed(6).replace('.',','):'—';
+function coordHtml(s){if(!hasCoord(s))return '<dt>Coordinate</dt><dd>non indicate</dd>';const u=toUTM33(s.lat,s.lon);
+  return `<dt>WGS84 (gradi decimali)</dt><dd>lat. ${fmtDeg(s.lat)} N · long. ${fmtDeg(s.lon)} E</dd>
+  <dt>UTM 33N (EPSG:32633)</dt><dd>E ${fmtM(u.E)} m · N ${fmtM(u.N)} m</dd>`;}
+// impaginazione delle pagine foto (mm): foto in alto a sinistra, riquadro delle indicazioni sempre a destra
+const PG={fotoW:193,fotoH:162,infoW:70,gap:10,stralcioW:62};
+function fotoSize(s){const im=IMGS[s.id];if(!im||!im.width)return '';const r=s.crop?(im.width*s.crop[2])/(im.height*s.crop[3]):im.width/im.height;
+  let w=PG.fotoW,h=w/r;if(h>PG.fotoH){h=PG.fotoH;w=h*r;}return `width:${w.toFixed(1)}mm;height:${h.toFixed(1)}mm`;}
+function pianoHtml(S){const titolo=P.name?P.name.replace(/_/g,' '):'Piano fotografico';const n=P.shots.length;
+  const righe=P.shots.map((s,i)=>`<tr><td class="c" style="color:${col(i)}"><b>${i+1}</b></td><td>${esc(s.nome)}</td><td>${dirWord(s.h)}</td><td class="nw">${esc(fmtDt(s.dt)).replace(' ore ','<br>ore ')}</td><td class="nw">${hasCoord(s)?fmtDeg(s.lat)+' N<br>'+fmtDeg(s.lon)+' E':'—'}</td></tr>`).join('');
+  const pagine=P.shots.map((s,i)=>`<section class="pg">
+  <header><h2><span class="dot" style="background:${col(i)}">${i+1}</span>Foto ${i+1} · ${esc(s.nome)}</h2><span class="muted">${esc(titolo)} · foto ${i+1} di ${n}</span></header>
+  <div class="cols"><figure class="big"><img src="${cropSrc(s)}" alt="" style="${fotoSize(s)}"></figure>
+  <aside class="info"><h3>Descrizione</h3><p>${esc(s.descr)||'<i>Descrizione da inserire.</i>'}</p>
+  <h3>Posizione e cono ottico</h3><figure class="small"><img src="${mapOne(i,S)}" alt=""></figure>
+  <h3>Punto di ripresa</h3><dl>${coordHtml(s)}
+  <dt>Direzione di ripresa</dt><dd>${dirWord(s.h)} (${Math.round(s.h)}°)</dd><dt>Data e ora dello scatto</dt><dd>${esc(fmtDt(s.dt))}</dd></dl>
+  </aside></div></section>`).join('');
+  return `<!doctype html><html lang="it"><head><meta charset="utf-8"><title>Piano fotografico · ${esc(titolo)}</title><style>
+  @page{size:A4 landscape;margin:12mm}
+  html,body{margin:0;background:#888;font:11pt/1.4 "Segoe UI",Arial,sans-serif;color:#111}
+  body{text-align:justify}p{text-align:justify;margin:0 0 6pt}h1,h2,h3{text-align:left;margin:0}
+  .bar{position:sticky;top:0;background:#2f5d50;color:#fff;padding:8px 14px;display:flex;gap:12px;align-items:center;font-size:13px}
+  .bar button{font:inherit;padding:6px 14px;border:0;border-radius:6px;background:#fff;color:#2f5d50;cursor:pointer;font-weight:600}
+  .pg{box-sizing:border-box;width:297mm;height:210mm;padding:12mm;background:#fff;margin:10px auto;overflow:hidden;page-break-after:always;break-after:page;display:flex;flex-direction:column;gap:5mm}
+  .pg:last-child{page-break-after:auto}
+  header{display:flex;justify-content:space-between;align-items:baseline;border-bottom:1.5pt solid #2f5d50;padding-bottom:2mm}
+  h1{font-size:18pt}h2{font-size:15pt;display:flex;align-items:center;gap:3mm}h3{font-size:11pt;margin:3mm 0 1.5mm;color:#2f5d50}.muted{color:#666;font-size:9.5pt}
+  .dot{display:inline-grid;place-items:center;width:7mm;height:7mm;border-radius:50%;color:#fff;font-size:11pt;font-weight:700}
+  *{-webkit-print-color-adjust:exact;print-color-adjust:exact}
+  .cols{display:grid;grid-template-columns:${PG.fotoW}mm ${PG.infoW}mm;column-gap:${PG.gap}mm;align-items:start;flex:1;min-height:0}
+  figure{margin:0;min-height:0}figure img{box-sizing:border-box;display:block;max-width:100%;object-fit:contain;border:.5pt solid #999}
+  .big{display:flex;align-items:flex-start;justify-content:flex-start;height:${PG.fotoH}mm}.big img{max-height:${PG.fotoH}mm;box-shadow:0 .6mm 1.8mm rgba(0,0,0,.18)}
+  .info{box-sizing:border-box;width:${PG.infoW}mm;border:.75pt solid #9db0a7;border-radius:2mm;padding:3.5mm 4mm 4mm;background:#f7faf8;font-size:9.5pt;text-align:left}
+  .info h3{font-size:9.5pt;text-transform:uppercase;letter-spacing:.04em;margin:4mm 0 1.5mm;padding-bottom:1mm;border-bottom:.5pt solid #c9d6cf}.info h3:first-child{margin-top:0}
+  .info p{text-align:justify;margin:0}
+  .small img{width:${PG.stralcioW}mm;height:${(PG.stralcioW*3/4).toFixed(1)}mm;object-fit:cover;background:#fff}
+  dl{margin:0}dt{font-size:8pt;color:#5a6a62;margin-top:1.6mm}dt:first-child{margin-top:0}dd{margin:0;font-size:9.5pt}
+  table.e{border-collapse:collapse;width:100%;font-size:10pt}table.e th,table.e td{border:.5pt solid #999;padding:1.5mm 2.5mm;text-align:left;vertical-align:top}table.e th{background:#eef2f0}td.c{text-align:center;width:8mm}td.nw{white-space:nowrap}
+  .p1{display:grid;grid-template-columns:1fr 118mm;gap:6mm;flex:1;min-height:0}.p1 img{max-height:165mm}.p1 table.e{font-size:9pt}.p1 table.e th,.p1 table.e td{padding:1.2mm 1.8mm}
+  @media print{.bar{display:none}html,body{background:#fff}.pg{margin:0;box-shadow:none;width:auto;height:auto;padding:0;min-height:0}}
+  </style></head><body>
+  <div class="bar"><button onclick="print()">Stampa / Salva come PDF</button><span>Nella finestra di stampa scegli "Salva come PDF", formato A4 orizzontale, margini predefiniti, senza intestazioni e piè di pagina.</span></div>
+  <section class="pg"><header><h1>Piano fotografico · ${esc(titolo)}</h1><span class="muted">${n} fotografie · coni ottici</span></header>
+  <div class="p1"><figure><img src="${mapAll()}" alt=""><figcaption>Planimetria con i punti di ripresa e i coni ottici di tutte le fotografie. Le parti nascoste alla vista sono campite con reticolo.</figcaption></figure>
+  <div><h3>Elenco delle fotografie</h3><table class="e"><tr><th>N.</th><th>Fotografia</th><th>Direzione</th><th>Data e ora</th><th>Punto di ripresa (WGS84)</th></tr>${righe}</table>
+  <p style="margin-top:4mm;font-size:9.5pt;color:#444">Ogni fotografia è riportata nelle pagine seguenti con la descrizione, la posizione sulla planimetria e le coordinate del punto di ripresa in WGS84 e UTM 33N (EPSG:32633).</p></div></div></section>
+  ${pagine}</body></html>`;}
+$('makePdf').onclick=()=>{if(!img)return;if(!P.shots.length){status('Carica almeno una foto');return;}
+  const w=window.open('','_blank');if(!w){alert('Il browser ha bloccato la nuova scheda: consenti le finestre popup per questo file e riprova.');return;}
+  const S=stralcioSize();
+  w.document.open();w.document.write(pianoHtml(S));w.document.close();
+  status('Piano fotografico aperto in una nuova scheda: lì premi "Stampa / Salva come PDF"'+(S.allargato?` · stralci allargati al ${Math.round(S.w/img.width*100)}% perché un cono non ci stava`:''));};
+const showS=()=>{$('sS').value=P.stralcio;$('oS').textContent=P.stralcio+'%';};
+$('sS').addEventListener('input',e=>{P.stralcio=+e.target.value;showS();});
+
+$('saveNotes').onclick=()=>{const o=notesObj(),tit={mappa_foto:'Immagine aerea e fotografie',coni:'Coni',zone:'Zone nascoste',dati:'Dati delle foto',esportazione:'Salvataggio ed esportazione'};
+  const txt=Object.keys(o).map(k=>`== ${tit[k]} ==\n${o[k]||'(nessuna nota)'}\n`).join('\n');
+  download('Note_coni_ottici_'+safe(P.name)+'.txt',new Blob([txt],{type:'text/plain'}));status('Note salvate');};
+
+// ---------- GitHub: salva e apri lo stesso progetto .json ----------
+const GH={get:k=>{try{return localStorage.getItem('coni.gh.'+k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem('coni.gh.'+k,v)}catch(e){}},del:k=>{try{localStorage.removeItem('coni.gh.'+k)}catch(e){}}};
+$('ghRepo').value=GH.get('repo')||'';$('ghBranch').value=GH.get('branch')||'main';$('ghDir').value=GH.get('dir')||'coni-ottici';$('ghTok').value=GH.get('tok')||'';
+if(!$('ghRepo').value||!$('ghTok').value)$('ghCfg').open=true;
+const ghMsg=t=>{$('ghMsg').textContent=t;status(t);};
+function ghCfg(){const c={repo:$('ghRepo').value.trim().replace(/^https?:\/\/github\.com\//,'').replace(/\.git$/,'').replace(/\/$/,''),branch:$('ghBranch').value.trim()||'main',dir:$('ghDir').value.trim().replace(/^\/+|\/+$/g,''),tok:$('ghTok').value.trim()};
+  GH.set('repo',c.repo);GH.set('branch',c.branch);GH.set('dir',c.dir);if(c.tok)GH.set('tok',c.tok);return c;}
+function ghUrl(c,p){return 'https://api.github.com/repos/'+c.repo+'/contents/'+p.split('/').filter(Boolean).map(encodeURIComponent).join('/');}
+function ghHead(c,raw){const h={Accept:raw?'application/vnd.github.raw':'application/vnd.github+json'};if(c.tok)h.Authorization='Bearer '+c.tok;return h;}
+async function ghErr(r){let m='';try{m=(await r.json()).message||''}catch(e){}return new Error(r.status+(m?' '+m:''));}
+function b64(str){const u=new TextEncoder().encode(str);let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s);}
+$('ghSave').onclick=async()=>{if(!img){ghMsg('Carica prima l\'immagine aerea');return;}const c=ghCfg();
+  if(!c.repo||!c.tok){$('ghCfg').open=true;ghMsg('Per salvare servono repository e chiave');return;}
+  const nome=safe(P.name)+'_coni_ottici.json',path=(c.dir?c.dir+'/':'')+nome;
+  const out={versione:4,name:P.name,map:P.map,stralcio:P.stralcio,shots:P.shots,note:notesObj(),salvato:new Date().toISOString()};
+  try{ghMsg('Salvataggio su GitHub...');let sha;
+    const g=await fetch(ghUrl(c,path)+'?ref='+encodeURIComponent(c.branch)+'&t='+Date.now(),{headers:ghHead(c),cache:'no-store'});
+    if(g.ok)sha=(await g.json()).sha;else if(g.status!==404)throw await ghErr(g);
+    const r=await fetch(ghUrl(c,path),{method:'PUT',headers:Object.assign(ghHead(c),{'Content-Type':'application/json'}),body:JSON.stringify({message:'Coni ottici: '+(P.name||nome),content:b64(JSON.stringify(out)),branch:c.branch,sha})});
+    if(!r.ok)throw await ghErr(r);
+    ghMsg('Salvato su GitHub: '+c.repo+'/'+path);}
+  catch(err){ghMsg('Salvataggio non riuscito ('+err.message+'). Controlla repository, ramo e che la chiave abbia il permesso Contents: Read and write.');}};
+$('ghList').onclick=async()=>{const c=ghCfg();if(!c.repo){$('ghCfg').open=true;ghMsg('Scrivi il repository');return;}
+  try{ghMsg('Cerco i progetti su GitHub...');
+    const r=await fetch(ghUrl(c,c.dir||'')+'?ref='+encodeURIComponent(c.branch)+'&t='+Date.now(),{headers:ghHead(c),cache:'no-store'});
+    if(!r.ok)throw await ghErr(r);
+    const fl=(await r.json()).filter(f=>f.type==='file'&&/\.json$/i.test(f.name));
+    if(!fl.length){ghMsg('Nessun progetto nella cartella '+(c.dir||'principale'));return;}
+    const sel_=$('ghFiles');sel_.innerHTML='<option value="">Scegli il progetto da aprire...</option>'+fl.map(f=>'<option value="'+f.path.replace(/"/g,'&quot;')+'">'+f.name+' ('+(f.size/1048576).toFixed(1)+' MB)</option>').join('');
+    sel_.hidden=false;ghMsg(fl.length+' progetti trovati: scegli quello da aprire');}
+  catch(err){ghMsg('Non riesco a leggere la cartella ('+err.message+'). Per un repository privato serve la chiave.');}};
+$('ghFiles').onchange=async e=>{const path=e.target.value;if(!path)return;const c=ghCfg();
+  try{ghMsg('Scarico il progetto...');const r=await fetch(ghUrl(c,path)+'?ref='+encodeURIComponent(c.branch)+'&t='+Date.now(),{headers:ghHead(c,true),cache:'no-store'});
+    if(!r.ok)throw await ghErr(r);await apriProgetto(await r.json(),path.split('/').pop());ghMsg('Aperto da GitHub: '+path);}
+  catch(err){ghMsg('Apertura non riuscita: '+err.message);}};
+$('ghForget').onclick=()=>{GH.del('tok');$('ghTok').value='';ghMsg('Chiave tolta da questo browser');};
+
+new ResizeObserver(()=>draw()).observe(stage);
+enable(false);draw();
+</script>
+</body>
+</html>
