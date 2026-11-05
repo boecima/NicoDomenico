@@ -1,0 +1,196 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Pipicelli DomenicAntonio, soluzioni ed idee</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet">
+<style>
+/* stile comune */
+:root{
+  --paper:#E8ECEA; --paper-2:#F3F5F3; --ink:#23292D; --ink-soft:#586166;
+  --line:#9AA3A7; --cobalt:#2B46B0; --cobalt-l:#5A70CC;
+  --face-l:#FBFCFA; --face-m:#EAEEEC; --face-m2:#DCE2E0; --face-r:#C6CFCD;
+  --bud-l:#DCE2F5; --bud-m:#BFCAF0; --header:rgba(232,236,234,.86);
+  --font:'Archivo','Helvetica Neue',Arial,sans-serif;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#1B2124; --paper-2:#232A2E; --ink:#E4E8E6; --ink-soft:#A3ACB0;
+    --line:#56616A; --cobalt:#93A6F2; --cobalt-l:#6F84D6;
+    --face-l:#46505A; --face-m:#3B444B; --face-m2:#323A40; --face-r:#262D31;
+    --bud-l:#44538C; --bud-m:#3A4878; --header:rgba(27,33,36,.86);
+  }
+  :root:not([data-theme="light"]) .plan{filter:invert(1) hue-rotate(180deg);mix-blend-mode:screen}
+}
+:root[data-theme="dark"]{
+  --paper:#1B2124; --paper-2:#232A2E; --ink:#E4E8E6; --ink-soft:#A3ACB0;
+  --line:#56616A; --cobalt:#93A6F2; --cobalt-l:#6F84D6;
+  --face-l:#46505A; --face-m:#3B444B; --face-m2:#323A40; --face-r:#262D31;
+  --bud-l:#44538C; --bud-m:#3A4878; --header:rgba(27,33,36,.86);
+}
+:root[data-theme="dark"] .plan{filter:invert(1) hue-rotate(180deg);mix-blend-mode:screen}
+*{box-sizing:border-box}
+html{scroll-behavior:smooth}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--font);font-size:17px;line-height:1.55;-webkit-font-smoothing:antialiased}
+img,svg{max-width:100%}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--cobalt);outline-offset:3px}
+.wrap{padding-inline:clamp(20px,5vw,72px)}
+
+/* Header */
+.top{position:fixed;inset:0 0 auto 0;z-index:20;display:flex;align-items:center;justify-content:space-between;
+  height:68px;background:var(--header);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);
+  opacity:0;transform:translateY(-8px);pointer-events:none;transition:opacity .6s ease,transform .6s ease}
+body.ready .top{opacity:1;transform:none;pointer-events:auto}
+.brand{display:flex;align-items:center;gap:10px;text-decoration:none;font-stretch:112%;font-weight:500;letter-spacing:.01em}
+.brand svg{width:30px;height:22px}
+.nav{position:relative}
+.menu-btn{font:inherit;font-size:15px;font-weight:500;color:var(--ink);background:none;border:1px solid var(--ink);
+  border-radius:999px;padding:8px 16px;display:flex;align-items:center;gap:10px;cursor:pointer}
+.menu-btn svg{width:12px;height:12px;transition:transform .35s ease}
+.menu-btn[aria-expanded="true"] svg{transform:rotate(180deg)}
+.menu{position:absolute;right:0;top:calc(100% + 10px);width:min(300px,86vw);background:var(--paper-2);
+  border:1px solid var(--ink);padding:6px;visibility:hidden;clip-path:inset(0 0 100% 0);
+  transition:clip-path .45s cubic-bezier(.65,0,.35,1),visibility 0s linear .45s}
+.menu.open{visibility:visible;clip-path:inset(0 0 0 0);transition:clip-path .45s cubic-bezier(.65,0,.35,1)}
+.menu a{display:block;text-decoration:none;padding:11px 12px;border-bottom:1px solid color-mix(in srgb,var(--line) 45%,transparent)}
+.menu a:last-child{border-bottom:0}
+.menu a:hover{background:var(--paper)}
+.menu span{display:block;font-weight:600;font-stretch:108%}
+.menu small{display:block;font-size:13px;color:var(--ink-soft)}
+
+/* Hero */
+.hero{min-height:100svh;display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.15fr);align-items:center;
+  gap:clamp(24px,4vw,64px);padding-top:92px;padding-bottom:40px;overflow:hidden}
+.hero-text{opacity:0;transform:translateY(12px);transition:opacity .9s ease .15s,transform .9s ease .15s}
+body.ready .hero-text{opacity:1;transform:none}
+h1{margin:0;line-height:.9;font-weight:300}
+h1 .n{display:block;font-size:clamp(40px,6.2vw,96px);font-stretch:125%;letter-spacing:-.02em}
+h1 .r{display:block;font-size:clamp(26px,3.6vw,54px);font-stretch:62%;font-weight:600;letter-spacing:.01em;margin-top:.14em}
+.second{margin:26px 0 0;padding-top:22px;border-top:1px solid var(--ink);line-height:.95}
+.second .n{display:block;font-size:clamp(26px,3.4vw,50px);font-weight:400;font-stretch:112%;letter-spacing:-.01em}
+.second .r{display:block;font-size:clamp(18px,2vw,28px);font-weight:600;font-stretch:62%;letter-spacing:.02em;margin-top:.2em;color:var(--ink-soft)}
+.lead{max-width:30em;margin:28px 0 30px;font-size:clamp(17px,1.4vw,20px);color:var(--ink-soft)}
+.actions{display:flex;flex-wrap:wrap;gap:12px;align-items:center}
+.btn{display:inline-block;text-decoration:none;font-weight:500;font-size:16px;padding:12px 20px;border:1px solid var(--ink)}
+.btn.solid{background:var(--ink);color:var(--paper)}
+.btn.solid:hover{background:var(--cobalt);border-color:var(--cobalt)}
+.btn.line:hover{background:var(--paper-2)}
+.replay{margin-top:22px;font:inherit;font-size:14px;color:var(--ink-soft);background:none;border:0;padding:0;
+  text-decoration:underline;text-underline-offset:3px;cursor:pointer}
+.stage{position:relative;width:min(720px,100%);justify-self:center;margin:0;will-change:transform}
+.stage.settle{transition:transform 1.1s cubic-bezier(.65,0,.35,1)}
+.frame{position:relative;width:100%;aspect-ratio:4/3;background:var(--paper)}
+.frame img{position:absolute;inset:0;width:100%;height:100%;display:block}
+.plan{object-fit:contain;mix-blend-mode:multiply;clip-path:inset(0 100% 0 0)}
+.render{object-fit:cover;clip-path:circle(0% at 50% 50%)}
+.lotus-svg{position:absolute;inset:0;width:100%;height:100%;overflow:visible;pointer-events:none}
+.caption{margin:10px 0 0;font-size:13px;color:var(--ink-soft);opacity:0;transition:opacity .8s ease .4s}
+body.ready .caption{opacity:1}
+
+.pod circle{stroke:var(--ink);stroke-width:.6}
+.pod .pod-c{fill:var(--bud-l)}
+.pod .seed{fill:var(--cobalt);stroke:none}
+.petal path{stroke:var(--ink);stroke-width:.6;stroke-linejoin:round}
+.petal .crease{fill:none;stroke-width:.5}
+
+.skip{position:fixed;right:20px;bottom:20px;z-index:30;font:inherit;font-size:14px;color:var(--ink);
+  background:var(--paper-2);border:1px solid var(--ink);padding:8px 14px;cursor:pointer;transition:opacity .4s}
+body.ready .skip{opacity:0;pointer-events:none}
+
+/* Sections */
+section{scroll-margin-top:80px}
+.studio{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:clamp(24px,5vw,80px);
+  padding-block:clamp(64px,10vw,140px)}
+h2{margin:0;font-size:clamp(34px,4.4vw,60px);line-height:1;font-weight:400;font-stretch:120%;letter-spacing:-.015em}
+.studio p{margin:0 0 1em;max-width:36em;font-size:clamp(18px,1.5vw,21px)}
+.facts{display:flex;flex-wrap:wrap;gap:12px 40px;margin-top:28px;font-size:15px;color:var(--ink-soft)}
+.facts strong{display:block;color:var(--ink);font-size:30px;font-weight:300;font-stretch:125%;line-height:1.1}
+
+.sheet{border:1.5px solid var(--ink);padding:9px;background:var(--paper-2)}
+.sheet-in{border:.75px solid var(--ink);padding:clamp(22px,4vw,56px);display:grid;gap:clamp(32px,4vw,56px)}
+.sheet-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:end;gap:16px}
+.sheet-head p{margin:0;max-width:28em;color:var(--ink-soft)}
+.services{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:clamp(28px,5vw,72px)}
+.service{scroll-margin-top:90px}
+.service h3{margin:0 0 10px;font-size:clamp(26px,2.6vw,36px);font-weight:600;font-stretch:70%;letter-spacing:.005em}
+.service > p{margin:0 0 18px;max-width:32em}
+.service ul{list-style:none;margin:0;padding:0;border-top:1px solid var(--ink)}
+.service li{display:flex;gap:14px;align-items:baseline;padding:11px 0;border-bottom:1px solid color-mix(in srgb,var(--line) 60%,transparent)}
+.service li::before{content:"";flex:none;width:9px;height:9px;transform:translateY(-1px) rotate(45deg);
+  background:linear-gradient(90deg,var(--face-l) 50%,var(--cobalt) 50%);border:.75px solid var(--ink)}
+.cartiglio{justify-self:end;width:min(360px,100%);display:grid;grid-template-columns:auto 1fr;border:1px solid var(--ink);font-size:14px;margin:0}
+.cartiglio dt,.cartiglio dd{margin:0;padding:6px 10px;border-bottom:1px solid var(--ink)}
+.cartiglio dt{color:var(--ink-soft);border-right:1px solid var(--ink)}
+.cartiglio dt:last-of-type,.cartiglio dd:last-of-type{border-bottom:0}
+
+/* Projects */
+.projects{padding-block:clamp(64px,10vw,140px)}
+.projects h2{margin-bottom:32px}
+.project{display:grid;grid-template-columns:minmax(0,1.75fr) minmax(0,1fr);gap:clamp(14px,2vw,24px);
+  padding-block:24px 48px;border-top:1px solid var(--ink)}
+.project.flip{grid-template-columns:minmax(0,1fr) minmax(0,1.75fr)}
+.project.flip .main{order:2}
+.side{display:grid;gap:clamp(14px,2vw,24px);align-content:start}
+.shot{padding:0;border:0;background:none;cursor:zoom-in;display:block;width:100%;overflow:hidden}
+.shot img{display:block;width:100%;aspect-ratio:4/3;object-fit:cover;transition:transform .6s ease}
+.shot:hover img{transform:scale(1.02)}
+.wide .shot img{aspect-ratio:16/9}
+.ptext h3{margin:0 0 4px;font-size:clamp(24px,2.4vw,32px);font-weight:400;font-stretch:112%;line-height:1.15}
+.ptype{margin:0 0 12px;color:var(--ink-soft);font-size:15px}
+.ptext p:last-child{margin:0;max-width:30em}
+
+dialog{border:0;padding:0;background:transparent;max-width:min(1400px,94vw);max-height:92vh}
+dialog::backdrop{background:rgba(20,24,26,.88)}
+dialog img{display:block;max-width:100%;max-height:84vh;object-fit:contain}
+.lb-close{margin-top:10px;font:inherit;font-size:15px;color:#fff;background:none;border:1px solid #fff;padding:8px 16px;cursor:pointer}
+
+.contact{background:var(--ink);color:var(--paper);padding-block:clamp(64px,10vw,130px)}
+.contact h2{font-stretch:125%;font-size:clamp(40px,7vw,104px);font-weight:300}
+.contact-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:28px;margin-top:44px}
+.contact-grid p{margin:0}
+.contact-grid span{display:block;font-size:14px;opacity:.7;margin-bottom:4px}
+.contact a{text-decoration-thickness:1px;text-underline-offset:4px}
+.contact .btn{border-color:var(--paper);color:var(--ink);background:var(--paper);margin-top:40px}
+.contact .btn:hover{background:transparent;color:var(--paper)}
+footer{padding-block:24px;font-size:13px;color:var(--ink-soft);display:flex;flex-wrap:wrap;justify-content:space-between;gap:10px}
+
+@media (max-width:899px){
+  .hero{grid-template-columns:1fr;padding-top:84px}
+  .stage{order:-1}
+  .studio,.services,.contact-grid{grid-template-columns:1fr}
+  .project,.project.flip{grid-template-columns:1fr}
+  .project.flip .main{order:0}
+}
+@media (prefers-reduced-motion:reduce){
+  html{scroll-behavior:auto}
+  *,*::before,*::after{transition-duration:.01ms!important}
+}
+
+/* stile della pagina */
+.top{opacity:1;transform:none;pointer-events:auto}
+.soon{min-height:100svh;display:grid;align-content:center;padding-top:84px;padding-bottom:48px}
+.soon h1{margin:0;line-height:.9;font-weight:300}
+.soon .n{display:block;font-size:clamp(40px,7vw,120px);font-stretch:125%;letter-spacing:-.02em}
+.soon .r{display:block;font-size:clamp(24px,3.6vw,56px);font-stretch:62%;font-weight:600;letter-spacing:.02em;margin-top:.14em;color:var(--ink-soft)}
+.soon p{max-width:32em;color:var(--ink-soft);margin:28px 0 0;font-size:clamp(17px,1.4vw,20px)}
+.soon .mark{width:120px;height:1px;background:var(--ink);margin:36px 0}
+</style>
+</head>
+<body class="ready">
+<header class="top wrap">
+  <a class="brand" href="index.html">Franco Nicola, architetto · Pipicelli DomenicAntonio</a>
+  <a class="btn line" href="index.html" style="font-size:14px;padding:8px 14px">Home</a>
+</header>
+<main class="soon wrap">
+  <h1><span class="n">Pipicelli DomenicAntonio</span><span class="r">soluzioni ed idee</span></h1>
+  <div class="mark"></div>
+  <p>Questa pagina è in costruzione. Nel frattempo, per pratiche edilizie, fine lavori e agibilità, scrivi a <a href="mailto:info@esempio.it">info@esempio.it</a>.</p>
+  <p><a href="nicola.html">Vai al sito di Franco Nicola, architetto</a></p>
+</main>
+<footer class="wrap"><span>Pipicelli DomenicAntonio, soluzioni ed idee</span><span><a href="index.html">Home</a></span></footer>
+</body>
+</html>
