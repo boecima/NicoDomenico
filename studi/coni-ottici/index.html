@@ -77,6 +77,12 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
 .empty{position:absolute;inset:0;display:grid;place-items:center;text-align:center;color:var(--muted);padding:24px}
 .empty div{max-width:420px}
 .empty p{text-align:center}
+.geobox{width:min(1100px,96vw)}
+#geoMap{position:relative;height:min(64vh,640px);overflow:hidden;background:#2b302d;cursor:grab;touch-action:none}
+#geoMap img{position:absolute;width:256px;height:256px;user-select:none;-webkit-user-drag:none;pointer-events:none;max-width:none}
+#geoMap .attr{z-index:2;position:absolute;right:4px;bottom:3px;font-size:10.5px;background:rgba(255,255,255,.8);padding:1px 5px;border-radius:3px;color:#333;pointer-events:none}
+#geoMap .cross{z-index:2;position:absolute;left:50%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;pointer-events:none;border:2px solid #fff;border-radius:50%;box-shadow:0 0 0 1px #0006}
+.shot .place{margin-top:4px}
 @media (max-width:760px){.app{grid-template-columns:1fr;grid-template-rows:auto 70vh}aside{border-right:0;border-bottom:1px solid var(--line)}}
 </style>
 </head>
@@ -91,9 +97,12 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
   <section id="secMap">
     <h2>Immagine aerea</h2>
     <div class="btns">
-      <label class="filebtn primary" id="mapBtn">Carica immagine aerea<input id="loadMap" type="file" accept="image/*"></label>
+      <button id="geoBtn" class="primary" type="button">Cerca sulla mappa</button>
+      <label class="filebtn" id="mapBtn">Carica immagine aerea<input id="loadMap" type="file" accept="image/*"></label>
       <label class="filebtn">Apri progetto<input id="loadJson" type="file" accept=".json,application/json"></label>
+      <button id="demoBtn" type="button">Apri l'esempio (Panarano)</button>
     </div>
+    <p class="hint">"Cerca sulla mappa": scrivi il comune, sposta e ingrandisci la vista satellitare fino alla zona, poi "Scatta": l'istantanea diventa l'immagine aerea.</p>
     <label class="hint" for="pname">Nome del lavoro (usato nei nomi dei file)</label>
     <input id="pname" class="txt" type="text" placeholder="es. Robertiello_Laviano">
     <p class="hint">Ortofoto o mappa catastale su ortofoto, con il nord in alto. Si può sostituire in seguito: i coni restano al loro posto in proporzione.</p>
@@ -205,6 +214,17 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
       <button type="button" id="cropReset">Foto intera</button><button type="button" id="cropCancel">Annulla</button><button type="button" class="primary" id="cropOk">Applica ritaglio</button></div>
   </div>
 </div>
+<div class="modal" id="geo" role="dialog" aria-modal="true" aria-label="Cerca la zona sulla mappa" data-open="false">
+  <div class="mbox geobox">
+    <form class="mhead" id="geoForm"><strong>Cerca la zona</strong>
+      <input id="geoQ" class="txt" type="search" placeholder="Comune o indirizzo, es. Avella Panarano" autocomplete="off" style="flex:1 1 220px;width:auto">
+      <button type="submit">Cerca</button></form>
+    <div id="geoMap" tabindex="0" aria-label="Mappa satellitare: trascina per spostare, rotella o +/- per ingrandire"></div>
+    <div class="mfoot"><p class="hint" id="geoInfo">Trascina per spostarti, rotella o + e − per ingrandire. Inquadra la zona e premi "Scatta".</p>
+      <button type="button" id="geoMinus" title="Riduci">−</button><button type="button" id="geoPlus" title="Ingrandisci">+</button>
+      <button type="button" id="geoCancel">Annulla</button><button type="button" class="primary" id="geoShot">Scatta</button></div>
+  </div>
+</div>
 <div class="peek" id="peek" role="dialog" aria-label="Anteprima della foto" data-open="false">
   <div class="ph" id="peekBar"><span class="dot" id="peekDot"></span><strong id="peekTit"></strong>
     <button class="small" type="button" id="peekPrev" title="Foto precedente">◀</button><button class="small" type="button" id="peekNext" title="Foto successiva">▶</button>
@@ -251,7 +271,7 @@ function hatch(c){const step=Math.max(6,Math.round(img.width/260));
   return hatchPat;}
 
 const off=document.createElement('canvas'),octx=off.getContext('2d');
-function renderCone(target,s,i,dim){
+function renderCone(target,s,i,dim){if(s.placed===false)return;
   off.width=img.width;off.height=img.height;octx.clearRect(0,0,off.width,off.height);
   const c=dim?'#777777':col(i);
   conePath(octx,s);octx.fillStyle=c;octx.globalAlpha=dim?.18:.32;octx.fill();octx.globalAlpha=1;
@@ -263,7 +283,7 @@ function renderCone(target,s,i,dim){
   conePath(octx,s);octx.lineWidth=Math.max(3,img.width/700);octx.strokeStyle=c;octx.stroke();
   target.drawImage(off,0,0);
 }
-function marker(c,s,i,r){c.beginPath();c.arc(s.x,s.y,r,0,7);c.fillStyle='#fff';c.fill();c.lineWidth=r/5;c.strokeStyle=col(i);c.stroke();
+function marker(c,s,i,r){if(s.placed===false)return;c.beginPath();c.arc(s.x,s.y,r,0,7);c.fillStyle='#fff';c.fill();c.lineWidth=r/5;c.strokeStyle=col(i);c.stroke();
   c.fillStyle=col(i);c.font=`bold ${r*1.2}px Segoe UI, Arial, sans-serif`;c.textAlign='center';c.textBaseline='middle';c.fillText(String(i+1),s.x,s.y+r*.05);}
 function north(c){const W=img.width,u=W/2000,x=W-100*u,y=120*u;
   c.fillStyle='#141414';c.beginPath();c.moveTo(x,y-70*u);c.lineTo(x-28*u,y+20*u);c.lineTo(x,y);c.lineTo(x+28*u,y+20*u);c.closePath();c.fill();
@@ -285,7 +305,7 @@ function draw(){
   P.shots.forEach((s,i)=>{if(!only||i===sel)marker(ctx,s,i,14/view.s)});
   if($('showN').checked)north(ctx);
   const s=P.shots[sel];
-  if(s){edgePts(s).forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,7/view.s,0,7);ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=2.5/view.s;ctx.strokeStyle=col(sel);ctx.stroke();});}
+  if(s&&s.placed!==false){edgePts(s).forEach(p=>{ctx.beginPath();ctx.arc(p.x,p.y,7/view.s,0,7);ctx.fillStyle='#fff';ctx.fill();ctx.lineWidth=2.5/view.s;ctx.strokeStyle=col(sel);ctx.stroke();});}
   if(cur.length){ctx.beginPath();cur.forEach((p,k)=>k?ctx.lineTo(p[0],p[1]):ctx.moveTo(p[0],p[1]));
     ctx.strokeStyle='#b3261e';ctx.lineWidth=2/view.s;ctx.setLineDash([6/view.s,4/view.s]);ctx.stroke();ctx.setLineDash([]);
     cur.forEach(p=>{ctx.beginPath();ctx.arc(p[0],p[1],4/view.s,0,7);ctx.fillStyle='#b3261e';ctx.fill();});}
@@ -422,6 +442,9 @@ function list(){
     const th=d.querySelector('.thumb');th.src=s.thumb;th.title='Clic per vedere la foto grande';th.alt='Foto '+(i+1)+': clic per ingrandire';
     th.onclick=ev=>{ev.stopPropagation();openPeek(i);};
     const nm=d.querySelector('input');nm.value=s.nome;nm.oninput=ev=>{s.nome=ev.target.value};
+    if(s.placed===false){const b=document.createElement('button');b.type='button';b.className='small primary place';b.textContent='Carica cono';
+      b.title='Mette il cono di questa foto sulla mappa: poi lo sposti e lo regoli a mano';
+      b.onclick=ev=>{ev.stopPropagation();placeCone(i);};d.querySelector('.meta').after(b);}
     d.querySelector('.meta').textContent=(s.file?s.file+' · ':'')+(s.masks.length===1?'1 zona nascosta':s.masks.length?s.masks.length+' zone nascoste':'nessuna zona nascosta')+(s.crop?' · ritagliata':'')+(hasCoord(s)?'':' · coordinate mancanti');
     if(i===sel){const m=document.createElement('div');m.className='more';
       m.innerHTML=`<textarea placeholder="Descrizione della foto (compare nel piano fotografico)"></textarea>
@@ -452,6 +475,18 @@ function list(){
     d.onclick=ev=>{if(ev.target.closest('.more'))return;if(sel!==i)select(i);};
     el.appendChild(d);});
 }
+// posa il cono: sulle coordinate GPS della foto se la mappa è georiferita, altrimenti al centro della vista
+function placeCone(i){const s=P.shots[i];if(!s||!img)return;let x,y,gps=false;
+  const g=P.map&&P.map.geo;
+  if(g&&hasCoord(s)){const q=geoToImg(s.lat,s.lon);if(q.x>=0&&q.x<=img.width&&q.y>=0&&q.y<=img.height){x=q.x;y=q.y;gps=true;}}
+  if(!gps){const w=stage.clientWidth,h=stage.clientHeight;x=(w/2-view.ox)/view.s;y=(h/2-view.oy)/view.s;
+    x=Math.max(0,Math.min(img.width,x));y=Math.max(0,Math.min(img.height,y));}
+  s.x=x;s.y=y;if(!s.L||s.placed===false)s.L=s.L0||Math.round(Math.min(img.width,img.height)/5);s.placed=true;delete s.L0;
+  select(i);status(gps?`Cono ${i+1} messo sul punto GPS della foto: regola direzione e apertura`:`Cono ${i+1} al centro della vista: trascina il cerchio numerato sul punto di ripresa`);}
+// mappa georiferita (istantanea dalla vista satellitare, Web Mercator)
+const merc=(lat,lon)=>{const s_=Math.sin(rad(lat));return{x:(lon+180)/360,y:.5-Math.log((1+s_)/(1-s_))/(4*Math.PI)};};
+function geoToImg(lat,lon){const g=P.map.geo,a=merc(g.n,g.w),b=merc(g.s,g.e),q=merc(lat,lon);
+  return{x:(q.x-a.x)/(b.x-a.x)*img.width,y:(q.y-a.y)/(b.y-a.y)*img.height};}
 function move(i,dir){const j=i+dir;if(j<0||j>=P.shots.length)return;[P.shots[i],P.shots[j]]=[P.shots[j],P.shots[i]];select(j);}
 function sliders(){const s=P.shots[sel];if(!s||!img)return;
   $('sL').max=Math.round(Math.hypot(img.width,img.height));
@@ -495,13 +530,13 @@ $('loadPhotos').onchange=async e=>{const files=[...e.target.files];if(!files.len
 cv.addEventListener('pointerdown',e=>{if(!img)return;
   const p=toImg(e),s=P.shots[sel],tol=12/view.s;
   if(maskMode){cur.push([p.x,p.y]);draw();return;}
-  if(s){const [a,b]=edgePts(s);
+  if(s&&s.placed!==false){const [a,b]=edgePts(s);
     if(Math.hypot(p.x-a.x,p.y-a.y)<tol)drag={t:'L'};else if(Math.hypot(p.x-b.x,p.y-b.y)<tol)drag={t:'R'};}
-  if(!drag){const hit=P.shots.findIndex(q=>Math.hypot(p.x-q.x,p.y-q.y)<16/view.s);
+  if(!drag){const hit=P.shots.findIndex(q=>q.placed!==false&&Math.hypot(p.x-q.x,p.y-q.y)<16/view.s);
     if(hit>=0){if(hit!==sel){sel=hit;list();sliders();}drag={t:'C',dx:p.x-P.shots[hit].x,dy:p.y-P.shots[hit].y};}
     else drag={t:'pan',x:e.clientX,y:e.clientY,ox:view.ox,oy:view.oy};}
   cv.setPointerCapture(e.pointerId);draw();});
-cv.addEventListener('pointermove',e=>{if(!drag)return;const p=toImg(e),s=P.shots[sel];
+cv.addEventListener('pointermove',e=>{if(!drag)return;const p=toImg(e),s=P.shots[sel];if(drag.t!=='pan'&&(!s||s.placed===false))return;
   if(drag.t==='pan'){view.ox=drag.ox+e.clientX-drag.x;view.oy=drag.oy+e.clientY-drag.y;}
   else if(drag.t==='C'){s.x=p.x-drag.dx;s.y=p.y-drag.dy;}
   else{const a=norm(deg(Math.atan2(p.x-s.x,-(p.y-s.y))));s.L=Math.max(20,Math.hypot(p.x-s.x,p.y-s.y));
@@ -526,7 +561,7 @@ $('maskBtn').onclick=()=>setMaskMode(!maskMode);
 $('maskClose').onclick=closeMask;
 $('maskUndo').onclick=()=>{if(P.shots[sel]){P.shots[sel].masks.pop();list();draw();}};
 $('maskClear').onclick=()=>{if(P.shots[sel]){P.shots[sel].masks=[];list();draw();}};
-document.addEventListener('keydown',e=>{if(CE){if(e.key==='Escape')closeCrop();if(e.key==='Enter'&&!e.target.matches('select'))applyCrop();return;}
+document.addEventListener('keydown',e=>{if($('geo').dataset.open==='true'){if(e.key==='Escape')geoClose();return;}if(CE){if(e.key==='Escape')closeCrop();if(e.key==='Enter'&&!e.target.matches('select'))applyCrop();return;}
   if(e.target.matches('input,textarea'))return;
   if(e.key==='Escape'&&!maskMode&&peekOpen)closePeek();
   if(e.key==='Escape'&&maskMode)setMaskMode(false);if(e.key==='Enter'&&maskMode)closeMask();});
@@ -555,7 +590,7 @@ async function apriProgetto(d,nome){
     status('Apertura del progetto...');
     P={name:d.name||'',map:null,shots:[],stralcio:d.stralcio||75};$('pname').value=P.name;img=null;showS();
     for(const s of d.shots||[]){s.id=nextId++;s.masks=s.masks||[];s.descr=s.descr||'';IMGS[s.id]=await loadImage(s.src);if(!s.thumb)s.thumb=makeThumb(IMGS[s.id]);P.shots.push(s);}
-    await setMap(d.map.src);setNotes(d.note);select(P.shots.length?0:-1);status('Progetto aperto: '+nome);}
+    await setMap(d.map.src);if(d.map.geo)P.map.geo=d.map.geo;setNotes(d.note);select(P.shots.length?0:-1);status('Progetto aperto: '+nome);}
 }
 // ---------- piano fotografico (PDF tramite stampa del browser) ----------
 function jpegOf(c,q){return c.toDataURL('image/jpeg',q)}
@@ -700,6 +735,69 @@ $('ghForget').onclick=()=>{GH.del('tok');$('ghTok').value='';ghMsg('Chiave tolta
   try{ status('Apro il progetto da GitHub...'); const r=await ghGet(c,path); if(!r.ok) throw await ghErr(r);
     await apriProgetto(await r.json(),path.split('/').pop()); ghMsg('Aperto da GitHub: '+path); }
   catch(err){ ghMsg('Non riesco ad aprire il progetto del link ('+err.message+')'); } })();
+
+// ---------- immagine aerea dalla vista satellitare ----------
+const TILE=(z,x,y)=>`https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/${z}/${y}/${x}`;
+const ATTR='Immagine © Esri, Maxar, Earthstar Geographics';
+const GM={z:15,cx:0,cy:0,el:null,tiles:{}};
+const w2p=(lat,lon,z)=>{const m=merc(lat,lon),n=256*2**z;return{x:m.x*n,y:m.y*n};};
+const p2w=(x,y,z)=>{const n=256*2**z,lon=x/n*360-180,lat=deg(Math.atan(Math.sinh(Math.PI*(1-2*y/n))));return{lat,lon};};
+function geoOpen(){const g=$('geo');g.dataset.open='true';GM.el=$('geoMap');
+  if(!GM.cx){const c=w2p(41.0155,14.7039,15);GM.cx=c.x;GM.cy=c.y;GM.z=15;}
+  geoDraw();setTimeout(()=>$('geoQ').focus(),50);}
+function geoClose(){$('geo').dataset.open='false';}
+function geoDraw(){const el=GM.el,W=el.clientWidth,H=el.clientHeight,z=GM.z,n=2**z;
+  const x0=GM.cx-W/2,y0=GM.cy-H/2,keep={};
+  for(let ty=Math.floor(y0/256);ty<=Math.floor((y0+H)/256);ty++)for(let tx=Math.floor(x0/256);tx<=Math.floor((x0+W)/256);tx++){
+    if(ty<0||ty>=n)continue;const xx=((tx%n)+n)%n,k=z+'/'+tx+'/'+ty;keep[k]=1;
+    let im=GM.tiles[k];if(!im){im=document.createElement('img');im.crossOrigin='anonymous';im.alt='';im.src=TILE(z,xx,ty);GM.tiles[k]=im;el.appendChild(im);}
+    im.style.left=Math.round(tx*256-x0)+'px';im.style.top=Math.round(ty*256-y0)+'px';}
+  for(const k in GM.tiles)if(!keep[k]){GM.tiles[k].remove();delete GM.tiles[k];}
+  if(!el.querySelector('.cross')){el.insertAdjacentHTML('beforeend',`<div class="cross"></div><div class="attr">${ATTR}</div>`);}
+  const c=p2w(GM.cx,GM.cy,z);$('geoInfo').textContent=`Zoom ${z} · centro ${c.lat.toFixed(5)}, ${c.lon.toFixed(5)} · trascina per spostarti, rotella o + e − per ingrandire, poi "Scatta".`;}
+function geoZoom(d,mx,my){const el=GM.el,W=el.clientWidth,H=el.clientHeight;const nz=Math.max(3,Math.min(19,GM.z+d));if(nz===GM.z)return;
+  if(mx===undefined){mx=W/2;my=H/2;}const wx=GM.cx-W/2+mx,wy=GM.cy-H/2+my,k=2**(nz-GM.z);
+  GM.cx=wx*k-mx+W/2;GM.cy=wy*k-my+H/2;GM.z=nz;geoDraw();}
+(()=>{const el=$('geoMap');let d=null,wt=0;
+  el.addEventListener('pointerdown',e=>{d={x:e.clientX,y:e.clientY,cx:GM.cx,cy:GM.cy};el.setPointerCapture(e.pointerId);el.style.cursor='grabbing';});
+  el.addEventListener('pointermove',e=>{if(!d)return;GM.cx=d.cx-(e.clientX-d.x);GM.cy=d.cy-(e.clientY-d.y);geoDraw();});
+  const up=()=>{d=null;el.style.cursor='grab';};el.addEventListener('pointerup',up);el.addEventListener('pointercancel',up);
+  el.addEventListener('wheel',e=>{e.preventDefault();const t=Date.now();if(t-wt<180)return;wt=t;const r=el.getBoundingClientRect();geoZoom(e.deltaY<0?1:-1,e.clientX-r.left,e.clientY-r.top);},{passive:false});
+  el.addEventListener('dblclick',e=>{const r=el.getBoundingClientRect();geoZoom(1,e.clientX-r.left,e.clientY-r.top);});
+  el.addEventListener('keydown',e=>{const m={ArrowLeft:[-60,0],ArrowRight:[60,0],ArrowUp:[0,-60],ArrowDown:[0,60]}[e.key];
+    if(m){e.preventDefault();GM.cx+=m[0];GM.cy+=m[1];geoDraw();}if(e.key==='+')geoZoom(1);if(e.key==='-')geoZoom(-1);});
+  new ResizeObserver(()=>{if($('geo').dataset.open==='true')geoDraw();}).observe(el);})();
+$('geoBtn').onclick=geoOpen;$('geoCancel').onclick=geoClose;
+$('geoPlus').onclick=()=>geoZoom(1);$('geoMinus').onclick=()=>geoZoom(-1);
+$('geo').addEventListener('pointerdown',e=>{if(e.target===$('geo'))geoClose();});
+$('geoForm').onsubmit=async e=>{e.preventDefault();const q=$('geoQ').value.trim();if(!q)return;$('geoInfo').textContent='Cerco "'+q+'"...';
+  try{const r=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&limit=1&countrycodes=it&accept-language=it&q='+encodeURIComponent(q));
+    const j=await r.json();if(!j.length){$('geoInfo').textContent='Non trovo "'+q+'": prova con comune e provincia, es. "Avella AV".';return;}
+    const c=w2p(+j[0].lat,+j[0].lon,15);GM.z=15;GM.cx=c.x;GM.cy=c.y;geoDraw();
+    if(!$('pname').value){$('pname').value=q.replace(/\s+/g,'_');P.name=$('pname').value;}}
+  catch(err){$('geoInfo').textContent='Ricerca non riuscita: controlla la connessione.';}};
+$('geoShot').onclick=async()=>{const el=GM.el,W=el.clientWidth,H=el.clientHeight,zs=Math.min(19,GM.z+1),k=2**(zs-GM.z);
+  const X0=(GM.cx-W/2)*k,Y0=(GM.cy-H/2)*k,CW=Math.round(W*k),CH=Math.round(H*k),n=2**zs;
+  const c=document.createElement('canvas');c.width=CW;c.height=CH;const g=c.getContext('2d');g.fillStyle='#2b302d';g.fillRect(0,0,CW,CH);
+  $('geoInfo').textContent='Scatto in corso: scarico le immagini ad alta risoluzione...';$('geoShot').disabled=true;
+  const jobs=[];for(let ty=Math.floor(Y0/256);ty<=Math.floor((Y0+CH)/256);ty++)for(let tx=Math.floor(X0/256);tx<=Math.floor((X0+CW)/256);tx++){
+    if(ty<0||ty>=n)continue;const xx=((tx%n)+n)%n;
+    jobs.push(new Promise(res=>{const im=new Image();im.crossOrigin='anonymous';im.onload=()=>{g.drawImage(im,Math.round(tx*256-X0),Math.round(ty*256-Y0));res(true);};im.onerror=()=>res(false);im.src=TILE(zs,xx,ty);}));}
+  const ok=await Promise.all(jobs);$('geoShot').disabled=false;
+  if(!ok.some(Boolean)){$('geoInfo').textContent='Non riesco a scaricare le immagini satellitari: controlla la connessione e riprova.';return;}
+  const fs=Math.max(12,Math.round(CW/110));g.font=fs+'px Segoe UI, Arial, sans-serif';const tw=g.measureText(ATTR).width;
+  g.fillStyle='rgba(255,255,255,.8)';g.fillRect(CW-tw-fs,CH-fs*1.6,tw+fs,fs*1.6);g.fillStyle='#333';g.textBaseline='middle';g.fillText(ATTR,CW-tw-fs/2,CH-fs*.8);
+  let src;try{src=c.toDataURL('image/jpeg',.88);}catch(err){$('geoInfo').textContent='Il servizio delle immagini non permette l\'istantanea da questo indirizzo.';return;}
+  const a=p2w(X0,Y0,zs),b=p2w(X0+CW,Y0+CH,zs);
+  geoClose();await setMap(src,'vista satellitare');P.map.geo={n:a.lat,w:a.lon,s:b.lat,e:b.lon};
+  status('Immagine aerea dalla vista satellitare'+(P.shots.length?': premi "Carica cono" accanto a ogni foto':''));};
+
+// ---------- esempio ----------
+async function apriEsempio(){try{status('Apro l\'esempio...');const r=await fetch('esempio_panarano.json',{cache:'no-store'});if(!r.ok)throw new Error(r.status);
+  await apriProgetto(await r.json(),'esempio Panarano');status('Esempio aperto: premi "Carica cono" accanto a ogni foto, poi sposta e regola il cono sulla mappa');}
+  catch(err){status('Non riesco ad aprire l\'esempio ('+err.message+')');}}
+$('demoBtn').onclick=apriEsempio;
+if(/(^|#|&)esempio/.test(location.hash))apriEsempio();
 
 new ResizeObserver(()=>draw()).observe(stage);
 enable(false);draw();
