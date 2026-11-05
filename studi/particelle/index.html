@@ -1,0 +1,661 @@
+<!doctype html>
+<html lang="it">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Cerca particelle</title>
+<meta name="description" content="Ricerca di molte particelle catastali insieme tramite il servizio Zornade: tabella dei risultati, mappa con i contorni colorati per proprietario, file CSV, GeoJSON e KML.">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" crossorigin="">
+<style>
+:root{
+  --bg:#eef0ee; --panel:#ffffff; --fg:#1d2420; --muted:#5f6b64; --line:#d3d9d4;
+  --accent:#2f5d50; --accent-fg:#ffffff; --warn:#b3261e; --field:#f6f8f6; --ok:#2e7d32; --amber:#a86400;
+  --f-ui:"Segoe UI",system-ui,-apple-system,"Helvetica Neue",Arial,sans-serif;
+  --f-num:"Cascadia Mono","Consolas","SFMono-Regular",ui-monospace,monospace;
+  color-scheme:light;
+}
+html,body{height:100%}
+[hidden]{display:none!important}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.45 var(--f-ui)}
+.app{display:grid;grid-template-columns:360px 1fr;height:100%}
+aside{background:var(--panel);border-right:1px solid var(--line);overflow-y:auto;padding:14px 16px;display:flex;flex-direction:column;gap:14px;min-width:0}
+h1{font-size:17px;margin:0}
+.sub{color:var(--muted);font-size:12.5px;margin:2px 0 0}
+h2{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 6px}
+section{display:flex;flex-direction:column;gap:6px;min-width:0}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+button{font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--field);color:var(--fg);cursor:pointer}
+button.small{padding:3px 7px;font-size:12px}
+button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
+button:disabled{opacity:.5;cursor:default}
+button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.hint{font-size:12.5px;color:var(--muted);margin:0}
+textarea{width:100%;box-sizing:border-box;min-height:110px;font:13px var(--f-num);background:var(--field);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px;resize:vertical}
+input.txt,select.txt{width:100%;box-sizing:border-box;font:13px var(--f-ui);background:var(--field);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px 6px;min-width:0}
+label.f{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:2px;min-width:0}
+details summary{cursor:pointer;font-size:12.5px;color:var(--muted)}
+.dati{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.owner{border:1px solid var(--line);border-radius:6px;background:var(--field);padding:8px;display:flex;flex-direction:column;gap:6px}
+.owner .head{display:grid;grid-template-columns:1fr 104px 28px;gap:6px;align-items:end}
+.fg{display:grid;grid-template-columns:50px 1fr 122px 28px;gap:6px;align-items:end}
+.fg .f,.owner .f{font-size:11.5px}
+.fg select{font-size:12px;padding:5px 2px}
+.x{padding:4px 0;width:28px;height:28px;line-height:1}
+.msg{font-size:12.5px;border-radius:6px;padding:6px 8px;margin:0;border:1px solid var(--line);background:var(--field)}
+.msg.err{border-color:var(--warn);color:var(--warn);background:#fdf1f0}
+.msg.ok{border-color:var(--ok);color:var(--ok);background:#f0f7f0}
+.tblwrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px;max-height:44vh;overflow-y:auto}
+table{border-collapse:collapse;width:100%;font-size:12px}
+th,td{padding:4px 6px;border-bottom:1px solid var(--line);text-align:left;white-space:nowrap}
+th{position:sticky;top:0;background:var(--field);color:var(--muted);font-weight:600}
+td.n{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums}
+tbody tr{cursor:pointer}
+tbody tr:hover{background:#f0f4f1}
+.st{font-weight:600}
+.st.trovata{color:var(--ok)}.st.non{color:var(--warn)}.st.piu{color:var(--amber)}.st.attesa{color:var(--muted)}
+.sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px;border:1px solid #0003}
+main{position:relative;overflow:hidden;min-width:0;background:var(--bg)}
+#map{position:absolute;inset:0}
+.status{position:absolute;left:12px;bottom:22px;z-index:500;background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:4px 10px;font-size:12.5px;color:var(--muted);max-width:calc(100% - 24px);box-sizing:border-box}
+.legend{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:6px 10px;font:12.5px var(--f-ui);color:var(--fg);max-width:220px;max-height:40vh;overflow:auto}
+.legend strong{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin-bottom:3px}
+.legend div{display:flex;align-items:center;gap:4px;line-height:1.6}
+.legend .sw{width:14px;height:10px;border-width:2px;border-style:solid;background:transparent!important}
+.leaflet-tooltip.plab{background:rgba(255,255,255,.85);border:0;box-shadow:none;padding:0 3px;font:600 11px var(--f-ui);color:#1d2420}
+.leaflet-tooltip.plab:before{display:none}
+.zoomhint{background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font:12px var(--f-ui);color:var(--muted)}
+@media (max-width:760px){.app{grid-template-columns:1fr;grid-template-rows:auto 70vh;height:auto}html,body{height:auto}aside{border-right:0;border-bottom:1px solid var(--line);overflow:visible}main{height:70vh}}
+</style>
+</head>
+<body>
+<div class="app">
+<aside>
+  <div>
+    <h1>Cerca particelle</h1>
+    <p class="sub">Cerca molte particelle catastali insieme, anche di comuni diversi, e le mostra sulla mappa con un colore per ogni proprietario. Da qui si scaricano la tabella (CSV, si apre con Excel) e i contorni (GeoJSON e KML).</p>
+  </div>
+
+  <section>
+    <h2>Chiave Zornade</h2>
+    <input id="key" class="txt" type="password" placeholder="zrn_... (resta solo in questo browser)" autocomplete="off" spellcheck="false" aria-label="Chiave Zornade">
+    <div class="btns"><button id="forget" type="button" class="small">Dimentica la chiave</button></div>
+    <p class="hint">La chiave personale gratuita si ottiene su app.zornade.com/api. Viene salvata solo in questo browser e inviata solo a Zornade, mai altrove.</p>
+  </section>
+
+  <section>
+    <h2>Elenco particelle</h2>
+    <textarea id="list" spellcheck="false" placeholder="Pannarano;8;285&#10;Pannarano;8;286;Rossi&#10;Avella;12;45&#10;41.0105,14.7012"></textarea>
+    <p class="hint">Una riga per particella: <b>Comune;foglio;particella</b>. Si possono mescolare comuni diversi. Si può aggiungere il proprietario in fondo (<b>Comune;foglio;particella;Rossi</b>). Al posto della particella si possono scrivere le coordinate di un punto (<b>latitudine,longitudine</b>): viene cercata la particella che lo contiene.</p>
+    <label class="f">Colore delle particelle dell'elenco senza proprietario<select id="listColor" class="txt"></select></label>
+  </section>
+
+  <section>
+    <h2>Proprietari</h2>
+    <label class="f">Comune<input id="fComune" class="txt" type="text" placeholder="es. Pannarano" autocomplete="off"></label>
+    <div id="owners" class="dati"></div>
+    <div class="btns"><button id="addOwner" type="button">Aggiungi proprietario</button></div>
+    <p class="hint">Per ogni proprietario: nome e colore, poi uno o più fogli con le particelle separate da virgola (es. 285, 286, 290). Un foglio può avere un colore suo: in legenda compare come "Nome - Fg. 8".</p>
+  </section>
+
+  <section>
+    <h2>Ricerca</h2>
+    <div class="btns">
+      <button id="go" type="button" class="primary">Cerca le particelle</button>
+      <button id="stop" type="button" disabled>Ferma</button>
+      <button id="clear" type="button">Svuota risultati</button>
+    </div>
+    <p id="msg" class="msg" hidden></p>
+  </section>
+
+  <section id="secRes" hidden>
+    <h2>Risultati</h2>
+    <p class="hint" id="summary"></p>
+    <div class="tblwrap"><table>
+      <thead><tr><th>Comune</th><th>Fg.</th><th>Pt.</th><th>Proprietario</th><th>Esito</th><th>m²</th><th>Zona sismica</th><th>OMI €/m²</th></tr></thead>
+      <tbody id="tbody"></tbody>
+    </table></div>
+    <p class="hint">Clicca una riga per andare alla particella sulla mappa.</p>
+  </section>
+
+  <section>
+    <h2>Scarica</h2>
+    <div class="btns">
+      <button id="dlCsv" type="button" class="primary" disabled>Tabella CSV</button>
+      <button id="dlGeo" type="button" disabled>GeoJSON</button>
+      <button id="dlKml" type="button" disabled>KML (Google Earth)</button>
+    </div>
+    <p class="hint">I file prendono il nome dei proprietari (es. Rossi.csv) o, se mancano, del comune. Se esiste già un file con lo stesso nome, il browser ne crea uno nuovo (es. "Rossi (1).csv") senza sovrascrivere. Il CSV usa il punto e virgola e la virgola decimale, come Excel in italiano. Il file per forMaps (.fmaps) si potrà aggiungere quando sarà disponibile un file .fmaps di esempio da cui ricavarne il formato.</p>
+  </section>
+
+  <section>
+    <h2>Mappa</h2>
+    <p class="hint">In alto a destra si sceglie tra Satellite e Mappa e si accende o spegne la mappa catastale dell'Agenzia delle Entrate, che compare solo ingrandendo molto (dal livello 16, scala di quartiere).</p>
+  </section>
+</aside>
+<main>
+  <div id="map" aria-label="Mappa delle particelle"></div>
+  <div class="status" id="status">Scrivi le particelle e premi "Cerca le particelle"</div>
+</main>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" crossorigin=""></script>
+<script>
+'use strict';
+const $=id=>document.getElementById(id);
+const COLORI={Rosso:'#d62728',Blu:'#1f5fbf',Verde:'#2e9b3a',Arancione:'#f07f0e',Viola:'#8e44ad',Giallo:'#e6b800',Grigio:'#7f7f7f',Nero:'#111111'};
+const NOMI_COLORI=Object.keys(COLORI);
+const store={get:k=>{try{return localStorage.getItem('particelle.'+k)}catch(e){return null}},
+  set:(k,v)=>{try{localStorage.setItem('particelle.'+k,v)}catch(e){}},
+  del:k=>{try{localStorage.removeItem('particelle.'+k)}catch(e){}}};
+const status=t=>{$('status').textContent=t};
+function msg(t,kind){const m=$('msg');if(!t){m.hidden=true;return}m.hidden=false;m.textContent=t;m.className='msg'+(kind?' '+kind:'')}
+function el(tag,attrs,...kids){const e=document.createElement(tag);for(const k in attrs||{}){if(k==='class')e.className=attrs[k];else if(k==='text')e.textContent=attrs[k];else e.setAttribute(k,attrs[k])}for(const c of kids)e.append(c);return e}
+function colorSelect(sel,value,withNone){sel.textContent='';if(withNone)sel.append(el('option',{value:'',text:'del proprietario'}));
+  for(const n of NOMI_COLORI)sel.append(el('option',{value:n,text:n}));sel.value=value||'';return sel}
+
+/* =====================================================================
+   ADATTATORE ZORNADE
+   Ricavato dal codice ufficiale del server MCP di Zornade
+   (github.com/zornade/zornade-mcp, functions/mcp/tools.ts):
+   - base https://api.zornade.com/api/v2, chiave nell'intestazione x-api-key
+     (accettati anche Authorization: Bearer e ?api_key=)
+   - GET parcels/search?comune=&foglio=&label=&sezione=&limit= (limit max 100)
+   - GET parcels/locate?lat=&lng=&limit= (limit max 200)
+   - GET parcels/{fid}?include=risk,economics,valuation ; la risposta ha
+     "data" con "geometry" GeoJSON completa
+   Non confermati (letti in modo tollerante, vedi norm()): forma esatta degli
+   elementi di search/locate, paginazione, campi OMI nella sezione valuation.
+   ===================================================================== */
+const Zornade={
+  BASE:'https://api.zornade.com/api/v2',
+  key:'',
+  useQueryKey:false,   // diventa true se l'intestazione x-api-key viene bloccata dal browser
+  calls:0,
+  signal:null,
+  async get(path,params){
+    const qs=new URLSearchParams();
+    for(const k in params||{})if(params[k]!==undefined&&params[k]!==null&&params[k]!=='')qs.set(k,String(params[k]));
+    const tryFetch=async viaQuery=>{
+      const q=new URLSearchParams(qs);if(viaQuery)q.set('api_key',this.key);
+      const url=this.BASE+'/'+path+(q.toString()?'?'+q:'');
+      const opt={headers:{Accept:'application/json'},signal:this.signal};
+      if(!viaQuery)opt.headers['x-api-key']=this.key;
+      this.calls++;
+      return fetch(url,opt);
+    };
+    let r;
+    try{r=await tryFetch(this.useQueryKey)}
+    catch(e){
+      if(e.name==='AbortError')throw e;
+      if(this.useQueryKey)throw new ApiError('rete');
+      // Seconda prova senza intestazioni personalizzate (richiesta "semplice" per il browser)
+      try{r=await tryFetch(true);this.useQueryKey=true}
+      catch(e2){if(e2.name==='AbortError')throw e2;throw new ApiError('rete')}
+    }
+    let body=null;try{body=await r.json()}catch(e){}
+    if(!r.ok){
+      if(r.status===404)return null;
+      if(r.status===401||r.status===403)throw new ApiError('chiave');
+      if(r.status===429)throw new ApiError('quota');
+      throw new ApiError('http',r.status+' '+((body&&(body.message||body.error))||''));
+    }
+    return body;
+  },
+  list(body){
+    if(!body)return [];
+    let a=Array.isArray(body)?body:(body.data??body.results??body.parcels??body.items??body.features??[]);
+    if(a&&!Array.isArray(a)){a=a.parcels??a.results??a.items??a.features??[a]}
+    if(!Array.isArray(a))return [];
+    return a.map(x=>x&&x.type==='Feature'?Object.assign({},x.properties||{},{geometry:x.geometry,id:x.id??(x.properties||{}).fid}):x);
+  },
+  hasMore(body,got,limit){
+    const m=(body&&(body.meta||body.pagination))||{};
+    if(m.has_more===false||m.hasMore===false)return false;
+    if(m.has_more===true||m.hasMore===true||m.next||m.next_offset!=null)return true;
+    const tot=m.total??m.count_total??m.total_count??(body&&body.total);
+    if(typeof tot==='number')return null; // gestito dal chiamante con il totale
+    return got>=limit;
+  },
+  async search(params){
+    const LIMIT=100,out=[],seen=new Set();let offset=0;
+    for(let page=0;page<30;page++){
+      const p=Object.assign({},params,{limit:LIMIT});if(page>0)p.offset=offset;
+      const body=await this.get('parcels/search',p);
+      const items=this.list(body);let nuovi=0;
+      for(const it of items){const n=norm(it);const k=n.fid??JSON.stringify(it).slice(0,200);if(!seen.has(k)){seen.add(k);out.push(n);nuovi++}}
+      const m=(body&&(body.meta||body.pagination))||{};
+      const tot=m.total??m.total_count??(body&&body.total);
+      let more=this.hasMore(body,items.length,LIMIT);
+      if(more===null)more=out.length<tot;
+      if(!more||nuovi===0||items.length===0)break;
+      offset=m.next_offset??(offset+items.length);
+    }
+    return out;
+  },
+  async locate(lat,lng){return this.list(await this.get('parcels/locate',{lat,lng,limit:5})).map(norm)},
+  cache:new Map(),
+  async detail(fid){
+    if(fid==null)return null;
+    if(this.cache.has(fid))return this.cache.get(fid);
+    const body=await this.get('parcels/'+encodeURIComponent(fid),{include:'risk,economics,valuation'});
+    let d=body&&(body.data??body);if(Array.isArray(d))d=d[0];
+    const n=d?norm(d):null;this.cache.set(fid,n);return n;
+  }
+};
+class ApiError extends Error{constructor(kind,detail){super(kind);this.kind=kind;this.detail=detail||''}}
+
+const num=v=>{if(v==null||v==='')return null;const n=typeof v==='number'?v:parseFloat(String(v).replace(',','.'));return isFinite(n)?n:null};
+// Legge un elemento della risposta (ricerca, localizzazione o dettaglio) in forma comune.
+function norm(o){
+  const cad=o.cadastral||o.catasto||{};
+  const mun=o.municipality;
+  const comune=typeof mun==='string'?mun:((mun&&(mun.name||mun.nome))||o.comune||o.comune_name||o.municipality_name||cad.comune||'');
+  const foglio=o.foglio??cad.foglio??o.sheet??null;
+  const label=o.label??o.particella??cad.label??cad.particella??o.parcel??o.numero??null;
+  const risk=o.risk||{};
+  return {
+    fid:o.fid??o.id??o.gml_id??null,
+    comune:String(comune||''),
+    foglio:foglio==null?null:String(foglio),
+    particella:label==null?null:String(label),
+    sezione:o.sezione??cad.sezione??o.sezione_urbana??cad.sezione_urbana??null,
+    area:num(o.area_m2??cad.area_m2??o.area??o.superficie),
+    zona:risk.seismic_zone??o.seismic_zone??o.zona_sismica??null,
+    omi:findOmi(o),
+    centroid:readPoint(o.centroid??o.center??o.point??(o.lat!=null?{lat:o.lat,lng:o.lng??o.lon}:null)),
+    geometry:readGeom(o.geometry??o.geom??o.geojson)
+  };
+}
+function readPoint(c){
+  if(!c)return null;
+  if(typeof c==='string'){try{c=JSON.parse(c)}catch(e){const m=c.match(/(-?\d+\.?\d*)[ ,]+(-?\d+\.?\d*)/);if(!m)return null;c=[+m[1],+m[2]]}}
+  if(c.type==='Point')c=c.coordinates;
+  if(Array.isArray(c)){const a=+c[0],b=+c[1];if(!isFinite(a)||!isFinite(b))return null;return a>30&&b<30?[a,b]:[b,a]} // [lat,lng]
+  const lat=num(c.lat??c.latitude),lng=num(c.lng??c.lon??c.longitude);
+  return lat!=null&&lng!=null?[lat,lng]:null;
+}
+function readGeom(g){
+  if(!g)return null;
+  if(typeof g==='string'){try{g=JSON.parse(g)}catch(e){return null}}
+  if(g.type==='Feature')g=g.geometry;
+  if(!g||!g.type||!g.coordinates)return null;
+  // GeoJSON vuole [lng,lat]; se i valori sembrano invertiti (latitudine italiana > 30) li scambia
+  let first=g.coordinates;while(Array.isArray(first)&&Array.isArray(first[0]))first=first[0];
+  if(Array.isArray(first)&&first[0]>30&&first[1]<30){
+    const sw=a=>Array.isArray(a[0])?a.map(sw):[a[1],a[0]];g={type:g.type,coordinates:sw(g.coordinates)};
+  }
+  return g;
+}
+function findOmi(o){
+  const v=o.valuation||o.omi||{};
+  const flat={};const walk=(x,p)=>{if(!x||typeof x!=='object')return;for(const k in x){const val=x[k];if(val&&typeof val==='object'&&!Array.isArray(val))walk(val,p+k+'.');else flat[p+k]=val}};
+  walk(v,'');
+  const keys=Object.keys(flat);
+  const mn=keys.find(k=>/min/i.test(k)&&/(omi|eur|price|valor|m2|mq)/i.test(k)&&num(flat[k])!=null)||keys.find(k=>/(^|[._])min([._]|$)/i.test(k)&&num(flat[k])!=null);
+  const mx=keys.find(k=>/max/i.test(k)&&/(omi|eur|price|valor|m2|mq)/i.test(k)&&num(flat[k])!=null)||keys.find(k=>/(^|[._])max([._]|$)/i.test(k)&&num(flat[k])!=null);
+  if(mn&&mx)return {min:num(flat[mn]),max:num(flat[mx])};
+  const one=keys.find(k=>/(omi|price_m2|eur_m2|valore_m2)/i.test(k)&&num(flat[k])!=null);
+  if(one)return {val:num(flat[one])};
+  const e=o.economics&&num(o.economics.avg_residential_price_m2);
+  return e!=null?{val:e}:null;
+}
+
+/* ---------- confronto nomi e numeri ---------- */
+const plain=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
+const plainNum=s=>{const t=String(s??'').trim().toUpperCase();return t.replace(/^0+(?=[0-9A-Z])/,'')};
+function sameComune(a,b){const x=plain(a),y=plain(b);if(!x||!y)return true;return x===y||x.replace(/^san/,'s')===y.replace(/^san/,'s')}
+function foglioVariants(f){const n=plainNum(f);const out=[f.trim(),n,n.padStart(2,'0'),n.padStart(4,'0')];return [...new Set(out.filter(Boolean))]}
+function comuneVariants(c){
+  const t=c.trim().replace(/\s+/g,' ');
+  const title=t.toLowerCase().replace(/(^|[\s'\-])(\p{L})/gu,(m,a,b)=>a+b.toUpperCase());
+  const noAcc=t.normalize('NFD').replace(/[̀-ͯ]/g,'');
+  const apos=t.normalize('NFD').replace(/([aeiouAEIOU])[̀́]/g,"$1'").normalize('NFC');
+  return [...new Set([t,title,t.toUpperCase(),noAcc,apos])];
+}
+
+/* =====================================================================
+   INGRESSI: elenco di testo e modulo proprietari
+   ===================================================================== */
+const rowsState=[];   // righe della ricerca
+let ownersData=[];    // [{nome,colore,fogli:[{foglio,particelle,colore}]}]
+
+function renderOwners(){
+  const box=$('owners');box.textContent='';
+  ownersData.forEach((o,oi)=>{
+    const card=el('div',{class:'owner'});
+    const nome=el('input',{class:'txt',type:'text',placeholder:'es. Rossi',autocomplete:'off'});nome.value=o.nome;
+    nome.oninput=()=>{o.nome=nome.value;saveForm()};
+    const col=colorSelect(el('select',{class:'txt'}),o.colore,false);col.onchange=()=>{o.colore=col.value;saveForm()};
+    const del=el('button',{type:'button',class:'small x',title:'Togli il proprietario','aria-label':'Togli il proprietario',text:'×'});
+    del.onclick=()=>{ownersData.splice(oi,1);renderOwners();saveForm()};
+    card.append(el('div',{class:'head'},el('label',{class:'f'},'Proprietario',nome),el('label',{class:'f'},'Colore',col),del));
+    o.fogli.forEach((f,fi)=>{
+      const fg=el('input',{class:'txt',type:'text',inputmode:'numeric',placeholder:'8',autocomplete:'off'});fg.value=f.foglio;fg.oninput=()=>{f.foglio=fg.value;saveForm()};
+      const pt=el('input',{class:'txt',type:'text',placeholder:'285, 286, 290',autocomplete:'off'});pt.value=f.particelle;pt.oninput=()=>{f.particelle=pt.value;saveForm()};
+      const fc=colorSelect(el('select',{class:'txt'}),f.colore,true);fc.onchange=()=>{f.colore=fc.value;saveForm()};
+      const x=el('button',{type:'button',class:'small x',title:'Togli il foglio','aria-label':'Togli il foglio',text:'×'});
+      x.onclick=()=>{o.fogli.splice(fi,1);renderOwners();saveForm()};
+      card.append(el('div',{class:'fg'},el('label',{class:'f'},'Foglio',fg),el('label',{class:'f'},'Particelle',pt),el('label',{class:'f'},'Colore',fc),x));
+    });
+    const add=el('button',{type:'button',class:'small',text:'Aggiungi foglio'});
+    add.onclick=()=>{o.fogli.push({foglio:'',particelle:'',colore:''});renderOwners();saveForm()};
+    card.append(el('div',{class:'btns'},add));
+    box.append(card);
+  });
+}
+$('addOwner').onclick=()=>{ownersData.push({nome:'',colore:NOMI_COLORI[ownersData.length%NOMI_COLORI.length],fogli:[{foglio:'',particelle:'',colore:''}]});renderOwners();saveForm()};
+function saveForm(){store.set('form',JSON.stringify({list:$('list').value,listColor:$('listColor').value,comune:$('fComune').value,owners:ownersData}))}
+function loadForm(){
+  let f=null;try{f=JSON.parse(store.get('form')||'null')}catch(e){}
+  colorSelect($('listColor'),(f&&f.listColor)||'Rosso',false);
+  if(f){$('list').value=f.list||'';$('fComune').value=f.comune||'';ownersData=Array.isArray(f.owners)?f.owners:[]}
+  renderOwners();
+}
+['list','fComune'].forEach(id=>$(id).addEventListener('input',saveForm));$('listColor').addEventListener('change',saveForm);
+
+function collectRows(){
+  const out=[],errs=[];
+  const listCol=$('listColor').value||'Rosso';
+  $('list').value.split(/\r?\n/).forEach((line,i)=>{
+    const t=line.trim();if(!t||t.startsWith('#'))return;
+    const parts=t.split(';').map(s=>s.trim());
+    const coord=parts[0].match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
+    if(coord){const owner=parts[1]||'';out.push({tipo:'punto',lat:+coord[1],lng:+coord[2],comune:'',foglio:'',particella:'',owner,colore:owner?null:listCol});return}
+    if(parts.length<3||!parts[0]||!parts[1]||!parts[2]){errs.push('riga '+(i+1)+': "'+t+'"');return}
+    const owner=parts[3]||'';
+    out.push({tipo:'rif',comune:parts[0],foglio:parts[1],particella:parts[2],owner,colore:owner?null:listCol});
+  });
+  const comune=$('fComune').value.trim();
+  ownersData.forEach((o,oi)=>{
+    const nome=o.nome.trim()||('Proprietario '+(oi+1));
+    o.fogli.forEach(f=>{
+      const pts=String(f.particelle||'').split(/[,\s]+/).map(s=>s.trim()).filter(Boolean);
+      if(!pts.length&&!String(f.foglio).trim())return;
+      if(!comune){errs.push('manca il comune per '+nome);return}
+      if(!String(f.foglio).trim()){errs.push('manca il numero del foglio per '+nome);return}
+      pts.forEach(p=>out.push({tipo:'rif',comune,foglio:String(f.foglio).trim(),particella:p,owner:nome,
+        colore:COLORI[f.colore]?f.colore:(COLORI[o.colore]?o.colore:'Rosso'),foglioProprio:!!COLORI[f.colore]&&f.colore!==o.colore}));
+    });
+  });
+  // colore del proprietario per le righe dell'elenco che indicano solo il nome
+  const ownCol={};ownersData.forEach(o=>{if(o.nome.trim())ownCol[o.nome.trim().toLowerCase()]=o.colore});
+  const used=new Set(out.map(r=>r.colore).filter(Boolean));
+  const free=NOMI_COLORI.filter(c=>!used.has(c));let k=0;const auto={};
+  out.forEach(r=>{if(!r.colore){const key=r.owner.toLowerCase();r.colore=ownCol[key]||auto[key]||(auto[key]=(free.length?free:NOMI_COLORI)[k++%(free.length||NOMI_COLORI.length)])}});
+  return {rows:out,errs};
+}
+
+/* =====================================================================
+   RICERCA
+   ===================================================================== */
+let running=false,abortCtl=null;
+async function searchRow(r){
+  if(r.tipo==='punto'){
+    const items=await Zornade.locate(r.lat,r.lng);
+    if(!items.length)return {stato:'non',matches:[]};
+    const d=await Zornade.detail(items[0].fid);
+    const m=mergeP(items[0],d);r.comune=m.comune;r.foglio=m.foglio||'';r.particella=m.particella||'';
+    return {stato:'trovata',matches:[m]};
+  }
+  const want=plainNum(r.particella),wantF=plainNum(r.foglio);
+  const okLabel=it=>it.particella==null||plainNum(it.particella)===want;
+  const okFoglio=it=>it.foglio==null||plainNum(it.foglio)===wantF;
+  const okCom=it=>sameComune(it.comune,r.comune);
+  let cand=[];
+  // 1) comune + foglio + particella, provando le diverse scritture del foglio e del comune
+  outer:for(const f of foglioVariants(r.foglio)){
+    for(const c of comuneVariants(r.comune)){
+      const items=await Zornade.search({comune:c,foglio:f,label:r.particella});
+      cand=items.filter(it=>okLabel(it)&&okCom(it)&&okFoglio(it));
+      if(cand.length)break outer;
+    }
+  }
+  // 2) senza foglio: tutte le particelle con quel numero nel comune, poi controllo del foglio
+  if(!cand.length){
+    for(const c of comuneVariants(r.comune)){
+      const items=(await Zornade.search({comune:c,label:r.particella})).filter(it=>okLabel(it)&&okCom(it));
+      if(!items.length)continue;
+      for(const it of items){
+        if(it.foglio!=null){if(okFoglio(it))cand.push(it);continue}
+        const d=await Zornade.detail(it.fid);
+        if(d&&d.foglio!=null&&plainNum(d.foglio)===wantF)cand.push(mergeP(it,d));
+      }
+      break;
+    }
+  }
+  // stesso numero più volte senza foglio leggibile: si controlla il foglio dal dettaglio
+  if(cand.length>1&&cand.some(c=>c.foglio==null)){
+    const checked=[];
+    for(const it of cand){const d=await Zornade.detail(it.fid);if(!d||d.foglio==null||plainNum(d.foglio)===wantF)checked.push(mergeP(it,d))}
+    cand=checked;
+  }
+  const matches=[];
+  for(const it of cand.slice(0,10)){matches.push(mergeP(it,await Zornade.detail(it.fid)))}
+  return {stato:matches.length===0?'non':matches.length===1?'trovata':'piu',matches};
+}
+function mergeP(a,b){if(!b)return a;const o={...a};for(const k in b){if(b[k]!=null&&b[k]!=='')o[k]=b[k]}return o}
+
+async function run(){
+  const {rows,errs}=collectRows();
+  if(errs.length){msg('Alcune righe non sono complete e vengono saltate: '+errs.slice(0,4).join('; ')+(errs.length>4?' ...':''),'err')}else msg('');
+  if(!rows.length){msg('Non ci sono particelle da cercare: scrivile nell\'elenco oppure aggiungi un proprietario con fogli e particelle.','err');return}
+  const key=$('key').value.trim();
+  if(!key){msg('Manca la chiave Zornade: incollala nel riquadro "Chiave Zornade" in alto.','err');$('key').focus();return}
+  Zornade.key=key;store.set('key',key);
+  rowsState.length=0;rows.forEach((r,i)=>{r.i=i;r.stato='attesa';r.matches=[];rowsState.push(r)});
+  renderTable();clearMap();
+  running=true;abortCtl=new AbortController();Zornade.signal=abortCtl.signal;Zornade.calls=0;
+  $('go').disabled=true;$('stop').disabled=false;setDownloads(false);
+  let done=0,fatal=null,next=0;
+  const worker=async()=>{
+    while(running&&!fatal&&next<rowsState.length){
+      const r=rowsState[next++];
+      try{const res=await searchRow(r);r.stato=res.stato;r.matches=res.matches}
+      catch(e){
+        if(e.name==='AbortError')break;
+        if(e instanceof ApiError&&e.kind!=='http'){fatal=e;r.stato='attesa';break}
+        r.stato='errore';r.nota=e instanceof ApiError?('Errore del servizio ('+e.detail.trim()+')'):'Errore imprevisto';
+      }
+      done++;status('Ricerca in corso: '+done+' di '+rowsState.length+' particelle');updateRow(r);drawRow(r);
+    }
+  };
+  await Promise.all([worker(),worker(),worker()]);
+  running=false;$('go').disabled=false;$('stop').disabled=true;
+  if(fatal)msg(errorText(fatal),'err');
+  renderTable();redrawAll(true);
+  const n=countBy();
+  status('Trovate '+n.trovata+' su '+rowsState.length+(n.piu?' · '+n.piu+' con più risultati':'')+(n.non?' · '+n.non+' non trovate':''));
+  if(!fatal&&!errs.length)msg(n.trovata+n.piu?'Ricerca completata ('+Zornade.calls+' richieste al servizio).':'Nessuna particella trovata. Controlla il nome del comune e i numeri di foglio e particella.',n.trovata+n.piu?'ok':'err');
+  setDownloads(rowsState.some(r=>r.matches.length));
+}
+function errorText(e){
+  if(e.kind==='rete')return 'Non è stato possibile parlare con il servizio Zornade. Le cause possibili sono due: manca la connessione a internet, oppure il servizio non accetta richieste che partono da una pagina web (i browser le bloccano per sicurezza, si chiama "blocco CORS"). In questo secondo caso questa pagina non può funzionare da sola: serve il vecchio programma sul computer, oppure chiedere a Zornade di abilitare le richieste dal sito dello studio.';
+  if(e.kind==='chiave')return 'La chiave Zornade non è stata accettata: è sbagliata o scaduta. Controllala su app.zornade.com/api e incollala di nuovo.';
+  if(e.kind==='quota')return 'Il servizio Zornade ha ricevuto troppe richieste in poco tempo (limite orario della chiave). Riprova fra un po\', magari con meno particelle per volta.';
+  return 'Il servizio Zornade ha risposto con un errore: '+e.detail;
+}
+function countBy(){const n={trovata:0,piu:0,non:0,errore:0,attesa:0};rowsState.forEach(r=>n[r.stato]=(n[r.stato]||0)+1);return n}
+$('go').onclick=()=>{if(!running)run()};
+$('stop').onclick=()=>{running=false;if(abortCtl)abortCtl.abort();status('Ricerca fermata')};
+$('clear').onclick=()=>{if(running)return;rowsState.length=0;renderTable();clearMap();setDownloads(false);msg('');status('Risultati svuotati')};
+
+/* ---------- tabella ---------- */
+const ESITI={trovata:'trovata',non:'non trovata',piu:'più risultati',attesa:'in attesa',errore:'errore'};
+const fmtN=(v,d)=>v==null?'':v.toLocaleString('it-IT',{maximumFractionDigits:d,minimumFractionDigits:0});
+const omiText=o=>!o?'':(o.min!=null?fmtN(o.min,0)+'–'+fmtN(o.max,0):fmtN(o.val,0));
+const firstVal=(r,k)=>{const v=r.matches.map(m=>m[k]).filter(x=>x!=null&&x!=='');return v.length?v[0]:null};
+function renderTable(){
+  const tb=$('tbody');tb.textContent='';
+  $('secRes').hidden=!rowsState.length;
+  rowsState.forEach(r=>{const tr=el('tr');tr.dataset.i=r.i;tb.append(tr);fillRow(tr,r)});
+  const n=countBy();
+  $('summary').textContent=rowsState.length?(rowsState.length+' particelle: '+n.trovata+' trovate, '+n.piu+' con più risultati, '+n.non+' non trovate'+(n.errore?', '+n.errore+' con errore':'')+'.'):'';
+}
+function fillRow(tr,r){
+  tr.textContent='';
+  const cls=r.stato==='trovata'?'trovata':r.stato==='piu'?'piu':r.stato==='attesa'?'attesa':'non';
+  const area=r.matches.length===1?r.matches[0].area:null;
+  const sw=el('span',{class:'sw'});sw.style.background=COLORI[r.colore];
+  const st=el('td',{class:'st '+cls,text:ESITI[r.stato]+(r.stato==='piu'?' ('+r.matches.length+')':'')});if(r.nota)st.title=r.nota;
+  tr.append(el('td',{text:r.tipo==='punto'&&!r.comune?(r.lat+', '+r.lng):r.comune}),el('td',{class:'n',text:r.foglio}),el('td',{class:'n',text:r.particella}),
+    el('td',{},sw,r.owner||'—'),st,el('td',{class:'n',text:fmtN(area,0)}),el('td',{class:'n',text:firstVal(r,'zona')??''}),el('td',{class:'n',text:r.matches.length?omiText(r.matches[0].omi):''}));
+  tr.onclick=()=>zoomRow(r);
+}
+function updateRow(r){const tr=$('tbody').querySelector('tr[data-i="'+r.i+'"]');if(tr)fillRow(tr,r);const n=countBy();
+  $('summary').textContent=rowsState.length+' particelle: '+n.trovata+' trovate, '+n.piu+' con più risultati, '+n.non+' non trovate'+(n.errore?', '+n.errore+' con errore':'')+'.'}
+
+/* =====================================================================
+   MAPPA
+   ===================================================================== */
+let map=null,results=null,legend=null,zoomHint=null;
+const rowLayers=new Map();
+function initMap(){
+  if(typeof L==='undefined'){status('La libreria della mappa non si è caricata (manca la connessione?). La ricerca e i file funzionano lo stesso.');return}
+  map=L.map('map',{zoomControl:true,maxZoom:21}).setView([41.0,14.8],8);
+  const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:19,maxZoom:21,attribution:'© Esri, Maxar, Earthstar Geographics'});
+  const osm=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxNativeZoom:19,maxZoom:21,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'});
+  // Mappa catastale WMS dell'Agenzia delle Entrate. Il servizio lavora in coordinate geografiche
+  // (EPSG:6706): ogni tassello viene chiesto con il suo riquadro in gradi. Da zoom 16 in su
+  // la differenza con la proiezione della mappa è inferiore a un pixel.
+  const Catasto=L.TileLayer.WMS.extend({
+  onAdd(m){L.TileLayer.WMS.prototype.onAdd.call(this,m);this.wmsParams.srs='EPSG:6706'},
+  getTileUrl(c){
+    const b=this._tileCoordsToNwSe(c),nw=b[0],se=b[1];
+    const p=Object.assign({},this.wmsParams,{BBOX:[nw.lng,se.lat,se.lng,nw.lat].join(',')});
+    return this._url+L.Util.getParamString(p,this._url,true);
+  }});
+  const catasto=new Catasto('https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php',{
+    layers:'CP.CadastralParcel,fabbricati,vestizioni',styles:'',format:'image/png',transparent:true,version:'1.1.1',
+    minZoom:16,maxZoom:21,maxNativeZoom:20,opacity:.9,attribution:'Cartografia catastale © Agenzia delle Entrate'});
+  sat.addTo(map);catasto.addTo(map);
+  L.control.layers({'Satellite':sat,'Mappa':osm},{'Mappa catastale (Agenzia delle Entrate)':catasto},{collapsed:window.matchMedia('(max-width:760px)').matches}).addTo(map);
+  results=L.featureGroup().addTo(map);
+  zoomHint=L.control({position:'topleft'});
+  zoomHint.onAdd=()=>{const d=L.DomUtil.create('div','zoomhint');d.textContent='Ingrandisci per vedere la mappa catastale';return d};
+  const upd=()=>{const show=map.getZoom()<16&&map.hasLayer(catasto);if(show&&!zoomHint._map)zoomHint.addTo(map);if(!show&&zoomHint._map)zoomHint.remove()};
+  map.on('zoomend overlayadd overlayremove',upd);upd();
+  legend=L.control({position:'bottomright'});
+  legend.onAdd=()=>L.DomUtil.create('div','legend');
+}
+function clearMap(){if(!map)return;results.clearLayers();rowLayers.clear();if(legend._map)legend.remove()}
+function label(m,r){const f=m.foglio??r.foglio,p=m.particella??r.particella;return 'Fg.'+plainNum(f)+'/Pt.'+plainNum(p)}
+function drawRow(r){
+  if(!map)return;
+  const old=rowLayers.get(r.i);if(old)results.removeLayer(old);
+  if(!r.matches.length)return;
+  const color=COLORI[r.colore]||COLORI.Rosso,g=L.featureGroup();
+  r.matches.forEach(m=>{
+    const tip=label(m,r)+(r.owner?' · '+r.owner:'');
+    let lay=null;
+    if(m.geometry){lay=L.geoJSON(m.geometry,{style:{color,weight:3,opacity:1,fillColor:color,fillOpacity:.12,dashArray:r.stato==='piu'?'6 5':null}})}
+    else if(m.centroid){lay=L.circleMarker(m.centroid,{radius:7,color,weight:3,fillOpacity:.3})}
+    if(!lay)return;
+    // etichetta come livello a sé, così viene tolta insieme al contorno
+    const at=lay.getBounds?lay.getBounds().getCenter():lay.getLatLng();
+    g.addLayer(L.tooltip({permanent:true,direction:'center',className:'plab',interactive:false}).setLatLng(at).setContent(label(m,r)));
+    lay.bindPopup(()=>{const d=el('div');d.append(el('b',{text:m.comune||r.comune}),el('br'),document.createTextNode(tip),el('br'),
+      document.createTextNode('Superficie: '+(m.area!=null?fmtN(m.area,0)+' m²':'n.d.')+' · Zona sismica: '+(m.zona??'n.d.')+' · OMI: '+(omiText(m.omi)||'n.d.')));
+      if(r.stato==='piu')d.append(el('br'),el('i',{text:'Una di più particelle con lo stesso numero: controllare.'}));return d});
+    g.addLayer(lay);
+  });
+  g.addTo(results);rowLayers.set(r.i,g);
+}
+function redrawAll(fit){
+  if(!map)return;rowsState.forEach(r=>{if(!rowLayers.has(r.i))drawRow(r)});renderLegend();
+  if(fit&&results.getLayers().length){const b=results.getBounds();if(b.isValid())map.fitBounds(b,{padding:[30,30],maxZoom:18})}
+}
+function legendEntries(){
+  const seen=new Map();
+  rowsState.filter(r=>r.matches.length).forEach(r=>{
+    const name=r.foglioProprio?((r.owner||'Elenco')+' - Fg. '+plainNum(r.foglio)):(r.owner||'Elenco');
+    const k=name+'|'+r.colore;if(!seen.has(k))seen.set(k,{name,colore:r.colore});
+  });
+  return [...seen.values()];
+}
+function renderLegend(){
+  if(!map)return;const e=legendEntries();if(legend._map)legend.remove();if(!e.length)return;
+  legend.addTo(map);const d=legend.getContainer();d.textContent='';d.append(el('strong',{text:'Legenda'}));
+  e.forEach(x=>{const s=el('span',{class:'sw'});s.style.borderColor=COLORI[x.colore];d.append(el('div',{},s,x.name))});
+}
+function zoomRow(r){
+  if(!map)return;const g=rowLayers.get(r.i);
+  if(g){const b=g.getBounds();if(b.isValid())map.fitBounds(b,{padding:[40,40],maxZoom:19});g.eachLayer(l=>{if(l.openPopup)l.openPopup()})}
+  else if(r.tipo==='punto')map.setView([r.lat,r.lng],18);
+  if(window.matchMedia('(max-width:760px)').matches)$('map').scrollIntoView({behavior:'smooth'});
+}
+
+/* =====================================================================
+   FILE DA SCARICARE
+   ===================================================================== */
+function setDownloads(on){['dlCsv','dlGeo','dlKml'].forEach(id=>$(id).disabled=!on)}
+function baseName(){
+  const owners=[...new Set(rowsState.map(r=>r.owner).filter(Boolean))];
+  const comuni=[...new Set(rowsState.map(r=>r.comune).filter(Boolean))];
+  let n=owners.length?owners.join('_'):(comuni.length?comuni.join('_'):'particelle');
+  n=n.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9_.\- ]+/g,'').replace(/\s+/g,'_').slice(0,60);
+  return n||'particelle';
+}
+function download(text,name,type){
+  const url=URL.createObjectURL(new Blob([text],{type}));
+  const a=el('a',{href:url,download:name});document.body.append(a);a.click();a.remove();
+  setTimeout(()=>URL.revokeObjectURL(url),4000);
+}
+const dec=(v,d)=>v==null?'':(Math.round(v*10**d)/10**d).toString().replace('.',',');
+function csvCell(v){const s=v==null?'':String(v);return /[;"\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
+function buildCsv(){
+  const head=['Comune','Foglio','Particella','Proprietario','Colore','Esito','Superficie m²','Zona sismica','OMI €/m² min','OMI €/m² max','OMI €/m²','Latitudine','Longitudine','Codice Zornade (FID)','Note'];
+  const lines=[head.join(';')];
+  rowsState.forEach(r=>{
+    const ms=r.matches.length?r.matches:[{}];
+    ms.forEach(m=>{
+      const c=m.centroid||(m.geometry?centroidOf(m.geometry):null)||(r.tipo==='punto'?[r.lat,r.lng]:null);
+      const o=m.omi||{};
+      lines.push([m.comune||r.comune,m.foglio??r.foglio,m.particella??r.particella,r.owner,r.colore,ESITI[r.stato],dec(m.area,0),m.zona??'',
+        dec(o.min,0),dec(o.max,0),dec(o.val,0),c?dec(c[0],6):'',c?dec(c[1],6):'',m.fid??'',r.nota||(r.stato==='piu'?'più particelle con lo stesso numero: controllare':'')].map(csvCell).join(';'));
+    });
+  });
+  return '﻿'+lines.join('\r\n')+'\r\n';
+}
+function centroidOf(g){let sx=0,sy=0,n=0;const w=a=>{if(typeof a[0]==='number'){sx+=a[0];sy+=a[1];n++}else a.forEach(w)};w(g.coordinates);return n?[sy/n,sx/n]:null}
+function features(){
+  const out=[];
+  rowsState.forEach(r=>r.matches.forEach(m=>{
+    const geom=m.geometry||(m.centroid?{type:'Point',coordinates:[m.centroid[1],m.centroid[0]]}:null);if(!geom)return;
+    out.push({type:'Feature',geometry:geom,properties:{comune:m.comune||r.comune,foglio:m.foglio??r.foglio,particella:m.particella??r.particella,
+      etichetta:label(m,r),proprietario:r.owner||'',colore:r.colore,colore_hex:COLORI[r.colore],esito:ESITI[r.stato],superficie_m2:m.area,
+      zona_sismica:m.zona,omi_eur_m2:m.omi?(m.omi.val??null):null,omi_min:m.omi?(m.omi.min??null):null,omi_max:m.omi?(m.omi.max??null):null,fid:m.fid}});
+  }));
+  return out;
+}
+const xml=s=>String(s??'').replace(/[<>&"']/g,c=>({'<':'&lt;','>':'&gt;','&':'&amp;','"':'&quot;',"'":'&apos;'}[c]));
+function kmlColor(hex,a){const h=hex.replace('#','');return a+h.slice(4,6)+h.slice(2,4)+h.slice(0,2)}
+function kmlGeom(g){
+  const ring=r=>'<LinearRing><coordinates>'+r.map(p=>p[0]+','+p[1]+',0').join(' ')+'</coordinates></LinearRing>';
+  const poly=p=>'<Polygon><outerBoundaryIs>'+ring(p[0])+'</outerBoundaryIs>'+p.slice(1).map(h=>'<innerBoundaryIs>'+ring(h)+'</innerBoundaryIs>').join('')+'</Polygon>';
+  if(g.type==='Polygon')return poly(g.coordinates);
+  if(g.type==='MultiPolygon')return '<MultiGeometry>'+g.coordinates.map(poly).join('')+'</MultiGeometry>';
+  if(g.type==='Point')return '<Point><coordinates>'+g.coordinates[0]+','+g.coordinates[1]+',0</coordinates></Point>';
+  return '';
+}
+function buildKml(){
+  const fs=features();
+  const styles=NOMI_COLORI.map(n=>'<Style id="c'+n+'"><LineStyle><color>'+kmlColor(COLORI[n],'ff')+'</color><width>3</width></LineStyle><PolyStyle><color>'+kmlColor(COLORI[n],'33')+'</color></PolyStyle></Style>').join('\n');
+  const pm=fs.map(f=>{const p=f.properties;
+    const desc=[p.comune,p.proprietario&&('Proprietario: '+p.proprietario),p.superficie_m2!=null&&('Superficie: '+fmtN(p.superficie_m2,0)+' m²'),p.zona_sismica!=null&&('Zona sismica: '+p.zona_sismica),p.esito].filter(Boolean).join(' - ');
+    return '<Placemark><name>'+xml(p.etichetta)+'</name><description>'+xml(desc)+'</description><styleUrl>#c'+p.colore+'</styleUrl>'+kmlGeom(f.geometry)+'</Placemark>'}).join('\n');
+  return '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>'+xml(baseName())+'</name>\n'+styles+'\n'+pm+'\n</Document></kml>\n';
+}
+$('dlCsv').onclick=()=>download(buildCsv(),baseName()+'.csv','text/csv;charset=utf-8');
+$('dlGeo').onclick=()=>download(JSON.stringify({type:'FeatureCollection',features:features()},null,1),baseName()+'.geojson','application/geo+json');
+$('dlKml').onclick=()=>download(buildKml(),baseName()+'.kml','application/vnd.google-earth.kml+xml');
+
+/* ---------- chiave ---------- */
+$('key').value=store.get('key')||'';
+$('key').addEventListener('change',()=>{const k=$('key').value.trim();if(k)store.set('key',k)});
+$('forget').onclick=()=>{store.del('key');$('key').value='';msg('Chiave cancellata da questo browser.','ok')};
+
+loadForm();
+initMap();
+</script>
+</body>
+</html>
