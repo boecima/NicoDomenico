@@ -642,7 +642,7 @@ $('saveNotes').onclick=()=>{const o=notesObj(),tit={mappa_foto:'Immagine aerea e
 
 // ---------- GitHub: salva e apri lo stesso progetto .json ----------
 const GH={get:k=>{try{return localStorage.getItem('coni.gh.'+k)}catch(e){return null}},set:(k,v)=>{try{localStorage.setItem('coni.gh.'+k,v)}catch(e){}},del:k=>{try{localStorage.removeItem('coni.gh.'+k)}catch(e){}}};
-$('ghRepo').value=GH.get('repo')||'';$('ghBranch').value=GH.get('branch')||'main';$('ghDir').value=GH.get('dir')||'coni-ottici';$('ghTok').value=GH.get('tok')||'';
+$('ghRepo').value=GH.get('repo')||'boecima/NicoDomenico';$('ghBranch').value=GH.get('branch')||'main';$('ghDir').value=GH.get('dir')||'coni-ottici';$('ghTok').value=GH.get('tok')||'';
 if(!$('ghRepo').value||!$('ghTok').value)$('ghCfg').open=true;
 const ghMsg=t=>{$('ghMsg').textContent=t;status(t);};
 function ghCfg(){const c={repo:$('ghRepo').value.trim().replace(/^https?:\/\/github\.com\//,'').replace(/\.git$/,'').replace(/\/$/,''),branch:$('ghBranch').value.trim()||'main',dir:$('ghDir').value.trim().replace(/^\/+|\/+$/g,''),tok:$('ghTok').value.trim()};
