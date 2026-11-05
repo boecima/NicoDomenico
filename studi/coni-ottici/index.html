@@ -115,13 +115,6 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
     <p class="hint">Clicca una foto per selezionare il suo cono (e viceversa sulla mappa). Clicca la miniatura per vedere la foto grande in una finestra che resta aperta mentre posizioni il cono. Con le frecce cambi l'ordine: numeri e colori seguono la posizione nell'elenco.</p>
   </section>
 
-  <section id="secCone" aria-disabled="true">
-    <h2>Cono della foto selezionata</h2>
-    <div class="row"><label for="sH">Direzione</label><input id="sH" type="range" min="0" max="359" step="1"><output id="oH"></output></div>
-    <div class="row"><label for="sF">Apertura</label><input id="sF" type="range" min="10" max="360" step="1"><output id="oF"></output></div>
-    <div class="row"><label for="sL">Profondità</label><input id="sL" type="range" min="20" max="2400" step="5"><output id="oL"></output></div>
-    <p class="hint">Sulla mappa puoi trascinare il cerchio numerato (sposta il punto) e i due pallini ai bordi del cono (direzione, apertura e profondità).</p>
-  </section>
 
   <section id="secMask" aria-disabled="true">
     <h2>Zone nascoste</h2>
@@ -249,7 +242,7 @@ const rad=d=>d*Math.PI/180, deg=r=>r*180/Math.PI, norm=a=>((a%360)+360)%360;
 const col=i=>PAL[i%PAL.length];
 const hasMap=()=>!!img;
 
-function enable(on){['secShots','secCone','secMask','secView','secExp'].forEach(id=>$(id).setAttribute('aria-disabled',!on));
+function enable(on){['secShots','secMask','secView','secExp'].forEach(id=>$(id).setAttribute('aria-disabled',!on));
   $('empty').style.display=on?'none':'grid';$('mapBtn').firstChild.textContent=on?'Cambia immagine aerea':'Carica immagine aerea';}
 
 // ---------- geometria ----------
@@ -273,10 +266,10 @@ function hatch(c){const step=Math.max(6,Math.round(img.width/260));
 const off=document.createElement('canvas'),octx=off.getContext('2d');
 function renderCone(target,s,i,dim){if(s.placed===false)return;
   off.width=img.width;off.height=img.height;octx.clearRect(0,0,off.width,off.height);
-  const c=dim?'#777777':col(i);
-  conePath(octx,s);octx.fillStyle=c;octx.globalAlpha=dim?.18:.32;octx.fill();octx.globalAlpha=1;
+  const c=col(i);
+  conePath(octx,s);octx.fillStyle=c;octx.globalAlpha=dim==='sel'?.75:dim?.5:.32;octx.fill();octx.globalAlpha=1;
   if(s.masks.length){octx.save();conePath(octx,s);octx.clip();
-    octx.globalAlpha=dim?.35:1;octx.fillStyle=hatch(octx);
+    octx.globalAlpha=1;octx.fillStyle=hatch(octx);
     for(const m of s.masks){octx.beginPath();m.forEach((r,k)=>{const p=toAbs(s,r);k?octx.lineTo(p[0],p[1]):octx.moveTo(p[0],p[1])});octx.closePath();octx.fill();
       octx.strokeStyle='rgba(60,60,60,.8)';octx.lineWidth=Math.max(1.5,img.width/1400);octx.stroke();}
     octx.restore();}
@@ -301,7 +294,7 @@ function draw(){
   ctx.drawImage(img,0,0);
   const only=$('onlySel').checked;
   P.shots.forEach((s,i)=>{if(i!==sel&&!only)renderCone(ctx,s,i,true)});
-  if(P.shots[sel])renderCone(ctx,P.shots[sel],sel,false);
+  if(P.shots[sel])renderCone(ctx,P.shots[sel],sel,'sel');
   P.shots.forEach((s,i)=>{if(!only||i===sel)marker(ctx,s,i,14/view.s)});
   if($('showN').checked)north(ctx);
   const s=P.shots[sel];
@@ -489,12 +482,8 @@ function geoToImg(lat,lon){const g=P.map.geo,a=merc(g.n,g.w),b=merc(g.s,g.e),q=m
   return{x:(q.x-a.x)/(b.x-a.x)*img.width,y:(q.y-a.y)/(b.y-a.y)*img.height};}
 function move(i,dir){const j=i+dir;if(j<0||j>=P.shots.length)return;[P.shots[i],P.shots[j]]=[P.shots[j],P.shots[i]];select(j);}
 function sliders(){const s=P.shots[sel];if(!s||!img)return;
-  $('sL').max=Math.round(Math.hypot(img.width,img.height));
-  $('sH').value=s.h;$('sF').value=s.fov;$('sL').value=s.L;
-  $('oH').textContent=Math.round(s.h)+'°';$('oF').textContent=Math.round(s.fov)+'°';$('oL').textContent=Math.round(s.L);
   const d=$('dirTxt');if(d)d.textContent=`Direzione di ripresa: ${dirWord(s.h)} (${Math.round(s.h)}°)`;}
-['sH','sF','sL'].forEach(id=>$(id).addEventListener('input',e=>{const s=P.shots[sel];if(!s)return;
-  const v=+e.target.value;if(id==='sH')s.h=v;if(id==='sF')s.fov=v;if(id==='sL')s.L=v;sliders();draw();}));
+
 
 // ---------- caricamento immagini ----------
 const readFile=f=>new Promise((res,rej)=>{const r=new FileReader();r.onload=()=>res(r.result);r.onerror=rej;r.readAsDataURL(f);});
