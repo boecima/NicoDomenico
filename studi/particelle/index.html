@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Cerca particelle</title>
-<meta name="description" content="Ricerca di molte particelle catastali insieme tramite il servizio Zornade: tabella dei risultati, mappa con i contorni colorati per proprietario, file CSV, GeoJSON e KML.">
+<meta name="description" content="Ricerca di più particelle catastali di un comune con i servizi dell'Agenzia delle Entrate: contorni sulla mappa, tabella, file CSV, GeoJSON e KML, pagina dei poligoni.">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" crossorigin="">
 <style>
 :root{
@@ -24,21 +24,19 @@ h1{font-size:17px;margin:0}
 h2{font-size:11.5px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted);margin:0 0 6px}
 section{display:flex;flex-direction:column;gap:6px;min-width:0}
 .btns{display:flex;flex-wrap:wrap;gap:6px}
-button{font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--field);color:var(--fg);cursor:pointer}
+button,a.btn{font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid var(--line);background:var(--field);color:var(--fg);cursor:pointer;text-decoration:none}
 button.small{padding:3px 7px;font-size:12px}
 button.primary{background:var(--accent);color:var(--accent-fg);border-color:var(--accent)}
 button:disabled{opacity:.5;cursor:default}
-button:focus-visible,input:focus-visible,textarea:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
 .hint{font-size:12.5px;color:var(--muted);margin:0}
-textarea{width:100%;box-sizing:border-box;min-height:110px;font:13px var(--f-num);background:var(--field);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px;resize:vertical}
 input.txt,select.txt{width:100%;box-sizing:border-box;font:13px var(--f-ui);background:var(--field);color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:5px 6px;min-width:0}
 label.f{font-size:12px;color:var(--muted);display:flex;flex-direction:column;gap:2px;min-width:0}
 details summary{cursor:pointer;font-size:12.5px;color:var(--muted)}
 .dati{display:flex;flex-direction:column;gap:6px;margin-top:6px}
-.owner{border:1px solid var(--line);border-radius:6px;background:var(--field);padding:8px;display:flex;flex-direction:column;gap:6px}
-.owner .head{display:grid;grid-template-columns:1fr 104px 28px;gap:6px;align-items:end}
-.fg{display:grid;grid-template-columns:50px 1fr 122px 28px;gap:6px;align-items:end}
-.fg .f,.owner .f{font-size:11.5px}
+.grid2{display:grid;grid-template-columns:1fr 110px;gap:6px}
+.fg{display:grid;grid-template-columns:58px 1fr 104px 28px;gap:6px;align-items:end;border:1px solid var(--line);border-radius:6px;background:var(--field);padding:6px}
+.fg .f{font-size:11.5px}
 .fg select{font-size:12px;padding:5px 2px}
 .x{padding:4px 0;width:28px;height:28px;line-height:1}
 .msg{font-size:12.5px;border-radius:6px;padding:6px 8px;margin:0;border:1px solid var(--line);background:var(--field)}
@@ -52,7 +50,7 @@ td.n{text-align:right;font-family:var(--f-num);font-variant-numeric:tabular-nums
 tbody tr{cursor:pointer}
 tbody tr:hover{background:#f0f4f1}
 .st{font-weight:600}
-.st.trovata{color:var(--ok)}.st.non{color:var(--warn)}.st.piu{color:var(--amber)}.st.attesa{color:var(--muted)}
+.st.trovata{color:var(--ok)}.st.punto{color:var(--amber)}.st.non{color:var(--warn)}.st.piu{color:var(--amber)}.st.attesa{color:var(--muted)}
 .sw{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px;border:1px solid #0003}
 main{position:relative;overflow:hidden;min-width:0;background:var(--bg)}
 #map{position:absolute;inset:0}
@@ -72,29 +70,24 @@ main{position:relative;overflow:hidden;min-width:0;background:var(--bg)}
 <aside>
   <div>
     <h1>Cerca particelle</h1>
-    <p class="sub">Cerca molte particelle catastali insieme, anche di comuni diversi, e le mostra sulla mappa con un colore per ogni proprietario. Da qui si scaricano la tabella (CSV, si apre con Excel) e i contorni (GeoJSON e KML).</p>
+    <p class="sub">Scrivi il comune, i fogli e i numeri delle particelle: la pagina le cerca nella cartografia catastale dell'Agenzia delle Entrate, ne disegna i contorni sulla mappa e prepara la tabella (CSV, si apre con Excel), i file dei contorni (GeoJSON e KML) e una pagina con i soli poligoni.</p>
   </div>
 
   <section>
-    <h2>Chiave Zornade</h2>
-    <input id="key" class="txt" type="password" placeholder="zrn_... (resta solo in questo browser)" autocomplete="off" spellcheck="false" aria-label="Chiave Zornade">
-    <div class="btns"><button id="forget" type="button" class="small">Dimentica la chiave</button></div>
-    <p class="hint">La chiave personale gratuita si ottiene su app.zornade.com/api. Viene salvata solo in questo browser e inviata solo a Zornade, mai altrove.</p>
+    <h2>Comune</h2>
+    <div class="grid2">
+      <label class="f">Comune<input id="comune" class="txt" type="text" list="elencoComuni" autocomplete="off" value="Pannarano"></label>
+      <label class="f">Codice catastale<input id="codice" class="txt" type="text" autocomplete="off" spellcheck="false" maxlength="4" value="G311"></label>
+    </div>
+    <datalist id="elencoComuni"></datalist>
+    <p class="hint">Il codice catastale (4 caratteri, es. G311 per Pannarano) si compila da solo per i comuni della Campania; per gli altri comuni si cerca al momento della ricerca, oppure si scrive a mano.</p>
   </section>
 
   <section>
-    <h2>Elenco particelle</h2>
-    <textarea id="list" spellcheck="false" placeholder="Pannarano;8;285&#10;Pannarano;8;286;Rossi&#10;Avella;12;45&#10;41.0105,14.7012"></textarea>
-    <p class="hint">Una riga per particella: <b>Comune;foglio;particella</b>. Si possono mescolare comuni diversi. Si può aggiungere il proprietario in fondo (<b>Comune;foglio;particella;Rossi</b>). Al posto della particella si possono scrivere le coordinate di un punto (<b>latitudine,longitudine</b>): viene cercata la particella che lo contiene.</p>
-    <label class="f">Colore delle particelle dell'elenco senza proprietario<select id="listColor" class="txt"></select></label>
-  </section>
-
-  <section>
-    <h2>Proprietari</h2>
-    <label class="f">Comune<input id="fComune" class="txt" type="text" placeholder="es. Pannarano" autocomplete="off"></label>
-    <div id="owners" class="dati"></div>
-    <div class="btns"><button id="addOwner" type="button">Aggiungi proprietario</button></div>
-    <p class="hint">Per ogni proprietario: nome e colore, poi uno o più fogli con le particelle separate da virgola (es. 285, 286, 290). Un foglio può avere un colore suo: in legenda compare come "Nome - Fg. 8".</p>
+    <h2>Fogli e particelle</h2>
+    <div id="fogli" class="dati"></div>
+    <div class="btns"><button id="addFoglio" type="button">Aggiungi foglio</button></div>
+    <p class="hint">Per ogni foglio scrivi le particelle separate da virgola (es. 285, 288, 290). Il colore è facoltativo: se resta "automatico" ogni foglio prende un colore diverso. In legenda compare "Fg. 8".</p>
   </section>
 
   <section>
@@ -111,30 +104,46 @@ main{position:relative;overflow:hidden;min-width:0;background:var(--bg)}
     <h2>Risultati</h2>
     <p class="hint" id="summary"></p>
     <div class="tblwrap"><table>
-      <thead><tr><th>Comune</th><th>Fg.</th><th>Pt.</th><th>Proprietario</th><th>Esito</th><th>m²</th><th>Zona sismica</th><th>OMI €/m²</th></tr></thead>
+      <thead><tr><th>Fg.</th><th>Pt.</th><th>Esito</th><th>m² (calcolati)</th><th>Riferimento</th></tr></thead>
       <tbody id="tbody"></tbody>
     </table></div>
-    <p class="hint">Clicca una riga per andare alla particella sulla mappa.</p>
+    <p class="hint">Clicca una riga per andare alla particella sulla mappa. La superficie è calcolata dal contorno ed è indicativa: non sostituisce quella della visura.</p>
   </section>
 
   <section>
-    <h2>Scarica</h2>
+    <h2>Scarica e apri</h2>
     <div class="btns">
       <button id="dlCsv" type="button" class="primary" disabled>Tabella CSV</button>
       <button id="dlGeo" type="button" disabled>GeoJSON</button>
       <button id="dlKml" type="button" disabled>KML (Google Earth)</button>
     </div>
-    <p class="hint">I file prendono il nome dei proprietari (es. Rossi.csv) o, se mancano, del comune. Se esiste già un file con lo stesso nome, il browser ne crea uno nuovo (es. "Rossi (1).csv") senza sovrascrivere. Il CSV usa il punto e virgola e la virgola decimale, come Excel in italiano. Il file per forMaps (.fmaps) si potrà aggiungere quando sarà disponibile un file .fmaps di esempio da cui ricavarne il formato.</p>
+    <div class="btns">
+      <button id="openPage" type="button" disabled>Apri la pagina dei poligoni</button>
+      <button id="dlPage" type="button" disabled>Scarica la pagina (HTML)</button>
+    </div>
+    <p class="hint" id="pageLinkBox" hidden>Il browser ha bloccato l'apertura della nuova scheda. <a id="pageLink" href="#" target="_blank" rel="noopener">Clicca qui per aprire la pagina dei poligoni</a>.</p>
+    <p class="hint">I file prendono il nome del comune e dei fogli (es. Pannarano_Fg8.csv); se esiste già un file con lo stesso nome il browser ne crea uno nuovo senza sovrascrivere. Il CSV usa il punto e virgola e la virgola decimale, come Excel in italiano. "Apri la pagina dei poligoni" apre in una nuova scheda una mappa con le sole particelle trovate, che si può anche scaricare e conservare. Il file per forMaps (.fmaps) si potrà aggiungere quando sarà disponibile un file .fmaps di esempio da cui ricavarne il formato.</p>
   </section>
 
   <section>
-    <h2>Mappa</h2>
-    <p class="hint">In alto a destra si sceglie tra Satellite e Mappa e si accende o spegne la mappa catastale dell'Agenzia delle Entrate, che compare solo ingrandendo molto (dal livello 16, scala di quartiere).</p>
+    <h2>Collegamento ai contorni</h2>
+    <details>
+      <summary>Ripetitore per il servizio dei contorni (facoltativo)</summary>
+      <div class="dati">
+        <label class="f">Indirizzo del ripetitore<input id="proxy" class="txt" type="url" placeholder="es. https://ripetitore.esempio.it/?url={url}" autocomplete="off" spellcheck="false"></label>
+        <p class="hint">Il servizio dell'Agenzia delle Entrate che fornisce i contorni potrebbe non rispondere alle pagine web per motivi di sicurezza del browser. In quel caso le particelle si vedono come punti, la mappa catastale resta visibile e, se lo studio dispone di un "ripetitore" (un piccolo servizio che inoltra le richieste), basta scriverne qui l'indirizzo: {url} viene sostituito dall'indirizzo della richiesta. Resta salvato solo in questo browser.</p>
+      </div>
+    </details>
+  </section>
+
+  <section>
+    <h2>Mappa e fonti</h2>
+    <p class="hint">In alto a destra si sceglie tra Satellite e Mappa e si accende o spegne la mappa catastale dell'Agenzia delle Entrate, che compare solo ingrandendo molto (dal livello 16). Contorni e mappa catastale: Agenzia delle Entrate (CC BY 4.0). Posizione delle particelle per la ricerca: archivio aperto OnData, ricavato dagli stessi dati dell'Agenzia (CC BY 4.0, github.com/ondata/dati_catastali).</p>
   </section>
 </aside>
 <main>
   <div id="map" aria-label="Mappa delle particelle"></div>
-  <div class="status" id="status">Scrivi le particelle e premi "Cerca le particelle"</div>
+  <div class="status" id="status">Scrivi i fogli e le particelle e premi "Cerca le particelle"</div>
 </main>
 </div>
 
@@ -147,416 +156,327 @@ const NOMI_COLORI=Object.keys(COLORI);
 const store={get:k=>{try{return localStorage.getItem('particelle.'+k)}catch(e){return null}},
   set:(k,v)=>{try{localStorage.setItem('particelle.'+k,v)}catch(e){}},
   del:k=>{try{localStorage.removeItem('particelle.'+k)}catch(e){}}};
+store.del('key');store.del('form');   // dati della versione precedente (non più usati)
 const status=t=>{$('status').textContent=t};
 function msg(t,kind){const m=$('msg');if(!t){m.hidden=true;return}m.hidden=false;m.textContent=t;m.className='msg'+(kind?' '+kind:'')}
 function el(tag,attrs,...kids){const e=document.createElement(tag);for(const k in attrs||{}){if(k==='class')e.className=attrs[k];else if(k==='text')e.textContent=attrs[k];else e.setAttribute(k,attrs[k])}for(const c of kids)e.append(c);return e}
-function colorSelect(sel,value,withNone){sel.textContent='';if(withNone)sel.append(el('option',{value:'',text:'del proprietario'}));
-  for(const n of NOMI_COLORI)sel.append(el('option',{value:n,text:n}));sel.value=value||'';return sel}
 
 /* =====================================================================
-   ADATTATORE ZORNADE
-   Ricavato dal codice ufficiale del server MCP di Zornade
-   (github.com/zornade/zornade-mcp, functions/mcp/tools.ts):
-   - base https://api.zornade.com/api/v2, chiave nell'intestazione x-api-key
-     (accettati anche Authorization: Bearer e ?api_key=)
-   - GET parcels/search?comune=&foglio=&label=&sezione=&limit= (limit max 100)
-   - GET parcels/locate?lat=&lng=&limit= (limit max 200)
-   - GET parcels/{fid}?include=risk,economics,valuation ; la risposta ha
-     "data" con "geometry" GeoJSON completa
-   Non confermati (letti in modo tollerante, vedi norm()): forma esatta degli
-   elementi di search/locate, paginazione, campi OMI nella sezione valuation.
+   COMUNI DELLA CAMPANIA: nome | codice catastale (Belfiore) | provincia
+   Fonte: elenco ANPR/ISTAT dei comuni in vigore (ondata/dati_catastali, risorse/comuniANPR_ISTAT.csv)
    ===================================================================== */
-const Zornade={
-  BASE:'https://api.zornade.com/api/v2',
-  key:'',
-  useQueryKey:false,   // diventa true se l'intestazione x-api-key viene bloccata dal browser
-  calls:0,
-  signal:null,
-  async get(path,params){
-    const qs=new URLSearchParams();
-    for(const k in params||{})if(params[k]!==undefined&&params[k]!==null&&params[k]!=='')qs.set(k,String(params[k]));
-    const tryFetch=async viaQuery=>{
-      const q=new URLSearchParams(qs);if(viaQuery)q.set('api_key',this.key);
-      const url=this.BASE+'/'+path+(q.toString()?'?'+q:'');
-      const opt={headers:{Accept:'application/json'},signal:this.signal};
-      if(!viaQuery)opt.headers['x-api-key']=this.key;
-      this.calls++;
-      return fetch(url,opt);
-    };
-    let r;
-    try{r=await tryFetch(this.useQueryKey)}
-    catch(e){
-      if(e.name==='AbortError')throw e;
-      if(this.useQueryKey)throw new ApiError('rete');
-      // Seconda prova senza intestazioni personalizzate (richiesta "semplice" per il browser)
-      try{r=await tryFetch(true);this.useQueryKey=true}
-      catch(e2){if(e2.name==='AbortError')throw e2;throw new ApiError('rete')}
-    }
-    let body=null;try{body=await r.json()}catch(e){}
-    if(!r.ok){
-      if(r.status===404)return null;
-      if(r.status===401||r.status===403)throw new ApiError('chiave');
-      if(r.status===429)throw new ApiError('quota');
-      throw new ApiError('http',r.status+' '+((body&&(body.message||body.error))||''));
-    }
-    return body;
-  },
-  list(body){
-    if(!body)return [];
-    let a=Array.isArray(body)?body:(body.data??body.results??body.parcels??body.items??body.features??[]);
-    if(a&&!Array.isArray(a)){a=a.parcels??a.results??a.items??a.features??[a]}
-    if(!Array.isArray(a))return [];
-    return a.map(x=>x&&x.type==='Feature'?Object.assign({},x.properties||{},{geometry:x.geometry,id:x.id??(x.properties||{}).fid}):x);
-  },
-  hasMore(body,got,limit){
-    const m=(body&&(body.meta||body.pagination))||{};
-    if(m.has_more===false||m.hasMore===false)return false;
-    if(m.has_more===true||m.hasMore===true||m.next||m.next_offset!=null)return true;
-    const tot=m.total??m.count_total??m.total_count??(body&&body.total);
-    if(typeof tot==='number')return null; // gestito dal chiamante con il totale
-    return got>=limit;
-  },
-  async search(params){
-    const LIMIT=100,out=[],seen=new Set();let offset=0;
-    for(let page=0;page<30;page++){
-      const p=Object.assign({},params,{limit:LIMIT});if(page>0)p.offset=offset;
-      const body=await this.get('parcels/search',p);
-      const items=this.list(body);let nuovi=0;
-      for(const it of items){const n=norm(it);const k=n.fid??JSON.stringify(it).slice(0,200);if(!seen.has(k)){seen.add(k);out.push(n);nuovi++}}
-      const m=(body&&(body.meta||body.pagination))||{};
-      const tot=m.total??m.total_count??(body&&body.total);
-      let more=this.hasMore(body,items.length,LIMIT);
-      if(more===null)more=out.length<tot;
-      if(!more||nuovi===0||items.length===0)break;
-      offset=m.next_offset??(offset+items.length);
-    }
-    return out;
-  },
-  async locate(lat,lng){return this.list(await this.get('parcels/locate',{lat,lng,limit:5})).map(norm)},
-  cache:new Map(),
-  async detail(fid){
-    if(fid==null)return null;
-    if(this.cache.has(fid))return this.cache.get(fid);
-    const body=await this.get('parcels/'+encodeURIComponent(fid),{include:'risk,economics,valuation'});
-    let d=body&&(body.data??body);if(Array.isArray(d))d=d[0];
-    const n=d?norm(d):null;this.cache.set(fid,n);return n;
-  }
-};
-class ApiError extends Error{constructor(kind,detail){super(kind);this.kind=kind;this.detail=detail||''}}
-
-const num=v=>{if(v==null||v==='')return null;const n=typeof v==='number'?v:parseFloat(String(v).replace(',','.'));return isFinite(n)?n:null};
-// Legge un elemento della risposta (ricerca, localizzazione o dettaglio) in forma comune.
-function norm(o){
-  const cad=o.cadastral||o.catasto||{};
-  const mun=o.municipality;
-  const comune=typeof mun==='string'?mun:((mun&&(mun.name||mun.nome))||o.comune||o.comune_name||o.municipality_name||cad.comune||'');
-  const foglio=o.foglio??cad.foglio??o.sheet??null;
-  const label=o.label??o.particella??cad.label??cad.particella??o.parcel??o.numero??null;
-  const risk=o.risk||{};
-  return {
-    fid:o.fid??o.id??o.gml_id??null,
-    comune:String(comune||''),
-    foglio:foglio==null?null:String(foglio),
-    particella:label==null?null:String(label),
-    sezione:o.sezione??cad.sezione??o.sezione_urbana??cad.sezione_urbana??null,
-    area:num(o.area_m2??cad.area_m2??o.area??o.superficie),
-    zona:risk.seismic_zone??o.seismic_zone??o.zona_sismica??null,
-    omi:findOmi(o),
-    centroid:readPoint(o.centroid??o.center??o.point??(o.lat!=null?{lat:o.lat,lng:o.lng??o.lon}:null)),
-    geometry:readGeom(o.geometry??o.geom??o.geojson)
-  };
-}
-function readPoint(c){
-  if(!c)return null;
-  if(typeof c==='string'){try{c=JSON.parse(c)}catch(e){const m=c.match(/(-?\d+\.?\d*)[ ,]+(-?\d+\.?\d*)/);if(!m)return null;c=[+m[1],+m[2]]}}
-  if(c.type==='Point')c=c.coordinates;
-  if(Array.isArray(c)){const a=+c[0],b=+c[1];if(!isFinite(a)||!isFinite(b))return null;return a>30&&b<30?[a,b]:[b,a]} // [lat,lng]
-  const lat=num(c.lat??c.latitude),lng=num(c.lng??c.lon??c.longitude);
-  return lat!=null&&lng!=null?[lat,lng]:null;
-}
-function readGeom(g){
-  if(!g)return null;
-  if(typeof g==='string'){try{g=JSON.parse(g)}catch(e){return null}}
-  if(g.type==='Feature')g=g.geometry;
-  if(!g||!g.type||!g.coordinates)return null;
-  // GeoJSON vuole [lng,lat]; se i valori sembrano invertiti (latitudine italiana > 30) li scambia
-  let first=g.coordinates;while(Array.isArray(first)&&Array.isArray(first[0]))first=first[0];
-  if(Array.isArray(first)&&first[0]>30&&first[1]<30){
-    const sw=a=>Array.isArray(a[0])?a.map(sw):[a[1],a[0]];g={type:g.type,coordinates:sw(g.coordinates)};
-  }
-  return g;
-}
-function findOmi(o){
-  const v=o.valuation||o.omi||{};
-  const flat={};const walk=(x,p)=>{if(!x||typeof x!=='object')return;for(const k in x){const val=x[k];if(val&&typeof val==='object'&&!Array.isArray(val))walk(val,p+k+'.');else flat[p+k]=val}};
-  walk(v,'');
-  const keys=Object.keys(flat);
-  const mn=keys.find(k=>/min/i.test(k)&&/(omi|eur|price|valor|m2|mq)/i.test(k)&&num(flat[k])!=null)||keys.find(k=>/(^|[._])min([._]|$)/i.test(k)&&num(flat[k])!=null);
-  const mx=keys.find(k=>/max/i.test(k)&&/(omi|eur|price|valor|m2|mq)/i.test(k)&&num(flat[k])!=null)||keys.find(k=>/(^|[._])max([._]|$)/i.test(k)&&num(flat[k])!=null);
-  if(mn&&mx)return {min:num(flat[mn]),max:num(flat[mx])};
-  const one=keys.find(k=>/(omi|price_m2|eur_m2|valore_m2)/i.test(k)&&num(flat[k])!=null);
-  if(one)return {val:num(flat[one])};
-  const e=o.economics&&num(o.economics.avg_residential_price_m2);
-  return e!=null?{val:e}:null;
-}
-
-/* ---------- confronto nomi e numeri ---------- */
+const COMUNI_TXT="Acerno|A023|SA;Acerra|A024|NA;Afragola|A064|NA;Agerola|A068|NA;Agropoli|A091|SA;Aiello del Sabato|A101|AV;Ailano|A106|CE;Airola|A110|BN;Albanella|A128|SA;Alfano|A186|SA;Alife|A200|CE;Altavilla Irpina|A228|AV;Altavilla Silentina|A230|SA;Alvignano|A243|CE;Amalfi|A251|SA;Amorosi|A265|BN;Anacapri|A268|NA;Andretta|A284|AV;Angri|A294|SA;Apice|A328|BN;Apollosa|A330|BN;Aquara|A343|SA;Aquilonia|A347|AV;Ariano Irpino|A399|AV;Arienzo|A403|CE;Arpaia|A431|BN;Arpaise|A432|BN;Arzano|A455|NA;Ascea|A460|SA;Atena Lucana|A484|SA;Atrani|A487|SA;Atripalda|A489|AV;Auletta|A495|SA;Avella|A508|AV;Avellino|A509|AV;Aversa|A512|CE;Bacoli|A535|NA;Bagnoli Irpino|A566|AV;Baia E Latina|A579|CE;Baiano|A580|AV;Barano D'Ischia|A617|NA;Baronissi|A674|SA;Baselice|A696|BN;Battipaglia|A717|SA;Bellizzi|M294|SA;Bellona|A755|CE;Bellosguardo|A756|SA;Benevento|A783|BN;Bisaccia|A881|AV;Bonea|A970|BN;Bonito|A975|AV;Boscoreale|B076|NA;Boscotrecase|B077|NA;Bracigliano|B115|SA;Brusciano|B227|NA;Bucciano|B239|BN;Buccino|B242|SA;Buonabitacolo|B266|SA;Buonalbergo|B267|BN;Caggiano|B351|SA;Caianello|B361|CE;Caiazzo|B362|CE;Cairano|B367|AV;Caivano|B371|NA;Calabritto|B374|AV;Calitri|B415|AV;Calvanico|B437|SA;Calvi|B444|BN;Calvi Risorta|B445|CE;Calvizzano|B452|NA;Camerota|B476|SA;Camigliano|B477|CE;Campagna|B492|SA;Campolattaro|B541|BN;Campoli del Monte Taburno|B542|BN;Campora|B555|SA;Camposano|B565|NA;Cancello Ed Arnone|B581|CE;Candida|B590|AV;Cannalonga|B608|SA;Capaccio Paestum|B644|SA;Capodrise|B667|CE;Caposele|B674|AV;Capri|B696|NA;Capriati a Volturno|B704|CE;Capriglia Irpina|B706|AV;Capua|B715|CE;Carbonara di Nola|B740|NA;Cardito|B759|NA;Carife|B776|AV;Carinaro|B779|CE;Carinola|B781|CE;Casagiove|B860|CE;Casal di Principe|B872|CE;Casal Velino|B895|SA;Casalbore|B866|AV;Casalbuono|B868|SA;Casalduni|B873|BN;Casaletto Spartano|B888|SA;Casalnuovo di Napoli|B905|NA;Casaluce|B916|CE;Casamarciano|B922|NA;Casamicciola Terme|B924|NA;Casandrino|B925|NA;Casapesenna|M260|CE;Casapulla|B935|CE;Casavatore|B946|NA;Caselle in Pittari|B959|SA;Caserta|B963|CE;Casola di Napoli|B980|NA;Casoria|B990|NA;Cassano Irpino|B997|AV;Castel Baronia|C058|AV;Castel Campagnano|B494|CE;Castel di Sasso|C097|CE;Castel Morrone|C211|CE;Castel San Giorgio|C259|SA;Castel San Lorenzo|C262|SA;Castel Volturno|C291|CE;Castelcivita|C069|SA;Castelfranci|C105|AV;Castelfranco in Miscano|C106|BN;Castellabate|C125|SA;Castellammare di Stabia|C129|NA;Castello del Matese|C178|CE;Castello di Cisterna|C188|NA;Castelnuovo Cilento|C231|SA;Castelnuovo di Conza|C235|SA;Castelpagano|C245|BN;Castelpoto|C250|BN;Castelvenere|C280|BN;Castelvetere in Val Fortore|C284|BN;Castelvetere sul Calore|C283|AV;Castiglione del Genovesi|C306|SA;Cautano|C359|BN;Cava De' Tirreni|C361|SA;Celle di Bulgheria|C444|SA;Cellole|M262|CE;Centola|C470|SA;Ceppaloni|C476|BN;Ceraso|C485|SA;Cercola|C495|NA;Cerreto Sannita|C525|BN;Cervinara|C557|AV;Cervino|C558|CE;Cesa|C561|CE;Cesinali|C576|AV;Cetara|C584|SA;Chianche|C606|AV;Chiusano di San Domenico|C659|AV;Cicciano|C675|NA;Cicerale|C676|SA;Cimitile|C697|NA;Ciorlano|C716|CE;Circello|C719|BN;Colle Sannita|C846|BN;Colliano|C879|SA;Comiziano|C929|NA;Conca dei Marini|C940|SA;Conca della Campania|C939|CE;Contrada|C971|AV;Controne|C973|SA;Contursi Terme|C974|SA;Conza della Campania|C976|AV;Corbara|C984|SA;Corleto Monforte|D011|SA;Crispano|D170|NA;Cuccaro Vetere|D195|SA;Curti|D228|CE;Cusano Mutri|D230|BN;Domicella|D331|AV;Dragoni|D361|CE;Dugenta|D380|BN;Durazzano|D386|BN;Eboli|D390|SA;Ercolano|H243|NA;Faicchio|D469|BN;Falciano del Massico|D471|CE;Felitto|D527|SA;Fisciano|D615|SA;Flumeri|D638|AV;Foglianise|D644|BN;Foiano di Val Fortore|D650|BN;Fontanarosa|D671|AV;Fontegreca|D683|CE;Forchia|D693|BN;Forino|D701|AV;Forio|D702|NA;Formicola|D709|CE;Fragneto L'Abate|D755|BN;Fragneto Monforte|D756|BN;Francolise|D769|CE;Frasso Telesino|D784|BN;Frattamaggiore|D789|NA;Frattaminore|D790|NA;Frigento|D798|AV;Frignano|D799|CE;Furore|D826|SA;Futani|D832|SA;Gallo Matese|D884|CE;Galluccio|D886|CE;Gesualdo|D998|AV;Giano Vetusto|E011|CE;Giffoni Sei Casali|E026|SA;Giffoni Valle Piana|E027|SA;Ginestra Degli Schiavoni|E034|BN;Gioi|E037|SA;Gioia Sannitica|E039|CE;Giugliano in Campania|E054|NA;Giungano|E060|SA;Gragnano|E131|NA;Grazzanise|E158|CE;Greci|E161|AV;Gricignano di Aversa|E173|CE;Grottaminarda|E206|AV;Grottolella|E214|AV;Grumo Nevano|E224|NA;Guardia Lombardi|E245|AV;Guardia Sanframondi|E249|BN;Ischia|E329|NA;Ispani|E365|SA;Lacco Ameno|E396|NA;Lacedonia|E397|AV;Lapio|E448|AV;Laureana Cilento|E480|SA;Laurino|E485|SA;Laurito|E486|SA;Lauro|E487|AV;Laviano|E498|SA;Letino|E554|CE;Lettere|E557|NA;Liberi|E570|CE;Limatola|E589|BN;Lioni|E605|AV;Liveri|E620|NA;Luogosano|E746|AV;Lusciano|E754|CE;Lustra|E767|SA;Macerata Campania|E784|CE;Maddaloni|E791|CE;Magliano Vetere|E814|SA;Maiori|E839|SA;Manocalzati|E891|AV;Marano di Napoli|E906|NA;Marcianise|E932|CE;Mariglianella|E954|NA;Marigliano|E955|NA;Marzano Appio|E998|CE;Marzano di Nola|E997|AV;Massa di Somma|M289|NA;Massa Lubrense|F030|NA;Melito di Napoli|F111|NA;Melito Irpino|F110|AV;Melizzano|F113|BN;Mercato San Severino|F138|SA;Mercogliano|F141|AV;Meta|F162|NA;Mignano Monte Lungo|F203|CE;Minori|F223|SA;Mirabella Eclano|F230|AV;Moiano|F274|BN;Moio della Civitella|F278|SA;Molinara|F287|BN;Mondragone|F352|CE;Montaguto|F397|AV;Montano Antilia|F426|SA;Monte di Procida|F488|NA;Monte San Giacomo|F618|SA;Montecalvo Irpino|F448|AV;Montecorice|F479|SA;Montecorvino Pugliano|F480|SA;Montecorvino Rovella|F481|SA;Montefalcione|F491|AV;Montefalcone di Val Fortore|F494|BN;Monteforte Cilento|F507|SA;Monteforte Irpino|F506|AV;Montefredane|F511|AV;Montefusco|F512|AV;Montella|F546|AV;Montemarano|F559|AV;Montemiletto|F566|AV;Montesano sulla Marcellana|F625|SA;Montesarchio|F636|BN;Monteverde|F660|AV;Montoro|M330|AV;Morcone|F717|BN;Morigerati|F731|SA;Morra de Sanctis|F744|AV;Moschiano|F762|AV;Mugnano del Cardinale|F798|AV;Mugnano di Napoli|F799|NA;Napoli|F839|NA;Nocera Inferiore|F912|SA;Nocera Superiore|F913|SA;Nola|F924|NA;Novi Velia|F967|SA;Nusco|F988|AV;Ogliastro Cilento|G011|SA;Olevano sul Tusciano|G023|SA;Oliveto Citra|G039|SA;Omignano|G063|SA;Orria|G121|SA;Orta di Atella|G130|CE;Ospedaletto D'Alpinolo|G165|AV;Ottati|G192|SA;Ottaviano|G190|NA;Padula|G226|SA;Paduli|G227|BN;Pagani|G230|SA;Pago del Vallo di Lauro|G242|AV;Pago Veiano|G243|BN;Palma Campania|G283|NA;Palomonte|G292|SA;Pannarano|G311|BN;Paolisi|G318|BN;Parete|G333|CE;Parolise|G340|AV;Pastorano|G364|CE;Paternopoli|G370|AV;Paupisi|G386|BN;Pellezzano|G426|SA;Perdifumo|G447|SA;Perito|G455|SA;Pertosa|G476|SA;Pesco Sannita|G494|BN;Petina|G509|SA;Petruro Irpino|G519|AV;Piaggine|G538|SA;Piana di Monte Verna|G541|CE;Piano di Sorrento|G568|NA;Piedimonte Matese|G596|CE;Pietradefusi|G611|AV;Pietramelara|G620|CE;Pietraroja|G626|BN;Pietrastornina|G629|AV;Pietravairano|G630|CE;Pietrelcina|G631|BN;Pignataro Maggiore|G661|CE;Pimonte|G670|NA;Pisciotta|G707|SA;Poggiomarino|G762|NA;Polla|G793|SA;Pollena Trocchia|G795|NA;Pollica|G796|SA;Pomigliano D'Arco|G812|NA;Pompei|G813|NA;Ponte|G827|BN;Pontecagnano Faiano|G834|SA;Pontelandolfo|G848|BN;Pontelatone|G849|CE;Portici|G902|NA;Portico di Caserta|G903|CE;Positano|G932|SA;Postiglione|G939|SA;Pozzuoli|G964|NA;Praiano|G976|SA;Prata di Principato Ultra|G990|AV;Prata Sannita|G991|CE;Pratella|G995|CE;Pratola Serra|H006|AV;Presenzano|H045|CE;Prignano Cilento|H062|SA;Procida|H072|NA;Puglianello|H087|BN;Quadrelle|H097|AV;Qualiano|H101|NA;Quarto|H114|NA;Quindici|H128|AV;Ravello|H198|SA;Raviscanina|H202|CE;Recale|H210|CE;Reino|H227|BN;Riardo|H268|CE;Ricigliano|H277|SA;Rocca D'Evandro|H398|CE;Rocca San Felice|H438|AV;Roccabascerana|H382|AV;Roccadaspide|H394|SA;Roccagloriosa|H412|SA;Roccamonfina|H423|CE;Roccapiemonte|H431|SA;Roccarainola|H433|NA;Roccaromana|H436|CE;Rocchetta E Croce|H459|CE;Rofrano|H485|SA;Romagnano al Monte|H503|SA;Roscigno|H564|SA;Rotondi|H592|AV;Rutino|H644|SA;Ruviano|H165|CE;Sacco|H654|SA;Sala Consilina|H683|SA;Salento|H686|SA;Salerno|H703|SA;Salvitelle|H732|SA;Salza Irpina|H733|AV;San Bartolomeo in Galdo|H764|BN;San Cipriano D'Aversa|H798|CE;San Cipriano Picentino|H800|SA;San Felice a Cancello|H834|CE;San Gennaro Vesuviano|H860|NA;San Giorgio a Cremano|H892|NA;San Giorgio del Sannio|H894|BN;San Giorgio La Molara|H898|BN;San Giovanni a Piro|H907|SA;San Giuseppe Vesuviano|H931|NA;San Gregorio Magno|H943|SA;San Gregorio Matese|H939|CE;San Leucio del Sannio|H953|BN;San Lorenzello|H955|BN;San Lorenzo Maggiore|H967|BN;San Lupo|H973|BN;San Mango Piemonte|H977|SA;San Mango sul Calore|H975|AV;San Marcellino|H978|CE;San Marco dei Cavoti|H984|BN;San Marco Evangelista|F043|CE;San Martino Sannita|I002|BN;San Martino Valle Caudina|I016|AV;San Marzano sul Sarno|I019|SA;San Mauro Cilento|I031|SA;San Mauro La Bruca|I032|SA;San Michele di Serino|I034|AV;San Nazzaro|I049|BN;San Nicola Baronia|I061|AV;San Nicola La Strada|I056|CE;San Nicola Manfredi|I062|BN;San Paolo Bel Sito|I073|NA;San Pietro al Tanagro|I089|SA;San Pietro Infine|I113|CE;San Potito Sannitico|I130|CE;San Potito Ultra|I129|AV;San Prisco|I131|CE;San Rufo|I143|SA;San Salvatore Telesino|I145|BN;San Sebastiano al Vesuvio|I151|NA;San Sossio Baronia|I163|AV;San Tammaro|I261|CE;San Valentino Torio|I377|SA;San Vitaliano|I391|NA;Sant'Agata De' Goti|I197|BN;Sant'Agnello|I208|NA;Sant'Anastasia|I262|NA;Sant'Andrea di Conza|I264|AV;Sant'Angelo a Cupolo|I277|BN;Sant'Angelo a Fasanella|I278|SA;Sant'Angelo a Scala|I280|AV;Sant'Angelo All'Esca|I279|AV;Sant'Angelo D'Alife|I273|CE;Sant'Angelo dei Lombardi|I281|AV;Sant'Antimo|I293|NA;Sant'Antonio Abate|I300|NA;Sant'Arcangelo Trimonte|F557|BN;Sant'Arpino|I306|CE;Sant'Arsenio|I307|SA;Sant'Egidio del Monte Albino|I317|SA;Santa Croce del Sannio|I179|BN;Santa Lucia di Serino|I219|AV;Santa Maria a Vico|I233|CE;Santa Maria Capua Vetere|I234|CE;Santa Maria La Carità|M273|NA;Santa Maria La Fossa|I247|CE;Santa Marina|I253|SA;Santa Paolina|I301|AV;Santo Stefano del Sole|I357|AV;Santomenna|I260|SA;Sanza|I410|SA;Sapri|I422|SA;Sarno|I438|SA;Sassano|I451|SA;Sassinoro|I455|BN;Saviano|I469|NA;Savignano Irpino|I471|AV;Scafati|I483|SA;Scala|I486|SA;Scampitella|I493|AV;Scisciano|I540|NA;Senerchia|I606|AV;Serino|I630|AV;Serramezzana|I648|SA;Serrara Fontana|I652|NA;Serre|I666|SA;Sessa Aurunca|I676|CE;Sessa Cilento|I677|SA;Siano|I720|SA;Sicignano Degli Alburni|M253|SA;Sirignano|I756|AV;Solofra|I805|AV;Solopaca|I809|BN;Somma Vesuviana|I820|NA;Sorbo Serpico|I843|AV;Sorrento|I862|NA;Sparanise|I885|CE;Sperone|I893|AV;Stella Cilento|G887|SA;Stio|I960|SA;Striano|I978|NA;Sturno|I990|AV;Succivo|I993|CE;Summonte|L004|AV;Taurano|L061|AV;Taurasi|L062|AV;Teano|L083|CE;Teggiano|D292|SA;Telese Terme|L086|BN;Teora|L102|AV;Terzigno|L142|NA;Teverola|L155|CE;Tocco Caudio|L185|BN;Tora E Piccilli|L205|CE;Torchiara|L212|SA;Torella dei Lombardi|L214|AV;Torraca|L233|SA;Torre Annunziata|L245|NA;Torre del Greco|L259|NA;Torre Le Nocelle|L272|AV;Torre Orsaia|L274|SA;Torrecuso|L254|BN;Torrioni|L301|AV;Tortorella|L306|SA;Tramonti|L323|SA;Trecase|M280|NA;Trentinara|L377|SA;Trentola Ducenta|L379|CE;Trevico|L399|AV;Tufino|L460|NA;Tufo|L461|AV;Vairano Patenora|L540|CE;Vallata|L589|AV;Valle Agricola|L594|CE;Valle Dell'Angelo|G540|SA;Valle di Maddaloni|L591|CE;Vallesaccarda|L616|AV;Vallo della Lucania|L628|SA;Valva|L656|SA;Venticano|L739|AV;Vibonati|L835|SA;Vico Equense|L845|NA;Vietri sul Mare|L860|SA;Villa di Briano|D801|CE;Villa Literno|L844|CE;Villamaina|L965|AV;Villanova del Battista|L973|AV;Villaricca|G309|NA;Visciano|M072|NA;Vitulano|M093|BN;Vitulazio|M092|CE;Volla|M115|NA;Volturara Irpina|M130|AV;Zungoli|M203|AV";
+const COMUNI=COMUNI_TXT.split(';').map(s=>{const p=s.split('|');return {nome:p[0],codice:p[1],prov:p[2]}});
 const plain=s=>String(s||'').normalize('NFD').replace(/[̀-ͯ]/g,'').toLowerCase().replace(/[^a-z0-9]/g,'');
-const plainNum=s=>{const t=String(s??'').trim().toUpperCase();return t.replace(/^0+(?=[0-9A-Z])/,'')};
-function sameComune(a,b){const x=plain(a),y=plain(b);if(!x||!y)return true;return x===y||x.replace(/^san/,'s')===y.replace(/^san/,'s')}
-function foglioVariants(f){const n=plainNum(f);const out=[f.trim(),n,n.padStart(2,'0'),n.padStart(4,'0')];return [...new Set(out.filter(Boolean))]}
-function comuneVariants(c){
-  const t=c.trim().replace(/\s+/g,' ');
-  const title=t.toLowerCase().replace(/(^|[\s'\-])(\p{L})/gu,(m,a,b)=>a+b.toUpperCase());
-  const noAcc=t.normalize('NFD').replace(/[̀-ͯ]/g,'');
-  const apos=t.normalize('NFD').replace(/([aeiouAEIOU])[̀́]/g,"$1'").normalize('NFC');
-  return [...new Set([t,title,t.toUpperCase(),noAcc,apos])];
+function comuneDaNome(n){const k=plain(n);return k?COMUNI.find(c=>plain(c.nome)===k)||null:null}
+function comuneDaCodice(c){const k=String(c||'').trim().toUpperCase();return COMUNI.find(x=>x.codice===k)||null}
+
+/* =====================================================================
+   FONTI DEI DATI
+   1) Dove si trova la particella: archivio OnData (un punto interno per ogni
+      particella d'Italia, chiavi comune/foglio/particella), file parquet letti
+      a pezzi con richieste HTTP Range. Serve perché il servizio WFS
+      dell'Agenzia accetta solo ricerche per riquadro (BBOX), non per numero.
+   2) Contorno: WFS INSPIRE dell'Agenzia delle Entrate, GetFeature per
+      riquadro attorno al punto, poi scelta per NATIONALCADASTRALREFERENCE
+      (CCCC + sezione o "_" + foglio a 4 cifre + allegato + sviluppo + "." + particella,
+      es. G311_000800.285). Risposta GML 3.2 in EPSG:6706, assi lat,lon.
+   ===================================================================== */
+const ONDATA='https://raw.githubusercontent.com/ondata/dati_catastali/main/S_0000_ITALIA/anagrafica/';
+const LIBRERIE=['https://cdn.jsdelivr.net/npm/hyparquet@1.31.0/+esm','https://cdn.jsdelivr.net/npm/hyparquet-compressors@1.1.1/+esm'];
+const WFS='https://wfs.cartografia.agenziaentrate.gov.it/inspire/wfs/owfs01.php';
+const NS_WFS='http://www.opengis.net/wfs/2.0',NS_GML='http://www.opengis.net/gml/3.2';
+
+class Errore extends Error{constructor(tipo,dett){super(tipo);this.tipo=tipo;this.dett=dett||''}}
+let libs=null,indice=null;
+const puntiPerComune=new Map();   // codice -> [{foglio,particella,ref,lat,lng}]
+function caricaLibrerie(){
+  if(!libs)libs=Promise.all(LIBRERIE.map(u=>import(u))).then(m=>({pq:m[0],compressors:m[1].compressors}))
+    .catch(e=>{libs=null;throw new Errore('librerie')});
+  return libs;
+}
+async function apriIndice(lib){
+  if(!indice)indice=(async()=>{
+    try{const file=await lib.pq.asyncBufferFromUrl({url:ONDATA+'index.parquet'});
+      const righe=await lib.pq.parquetReadObjects({file,compressors:lib.compressors,columns:['comune','file','DENOMINAZIONE_IT']});
+      return righe.map(r=>({codice:String(r.comune),file:String(r.file),nome:String(r.DENOMINAZIONE_IT||'')}));
+    }catch(e){indice=null;throw new Errore('archivio')}
+  })();
+  return indice;
+}
+async function puntiDelComune(lib,codice,file){
+  if(puntiPerComune.has(codice))return puntiPerComune.get(codice);
+  let buf,meta;
+  try{buf=await lib.pq.asyncBufferFromUrl({url:ONDATA+file});meta=await lib.pq.parquetMetadataAsync(buf)}
+  catch(e){throw new Errore('archivio')}
+  const chiavi=meta.row_groups[0].columns.map(c=>c.meta_data.path_in_schema.join('.'));
+  const iC=chiavi.indexOf('comune');if(iC<0)throw new Errore('archivio','formato inatteso');
+  const blocchi=[];let riga=0;
+  for(const g of meta.row_groups){const s=g.columns[iC].meta_data.statistics;
+    if(!s||(String(s.min_value)<=codice&&String(s.max_value)>=codice))blocchi.push([riga,riga+Number(g.num_rows)]);riga+=Number(g.num_rows)}
+  const out=[];
+  for(const [da,a] of blocchi){
+    const righe=await lib.pq.parquetReadObjects({file:buf,compressors:lib.compressors,rowStart:da,rowEnd:a,columns:['INSPIREID_LOCALID','comune','foglio','particella','x','y']});
+    for(const r of righe){if(r.comune!==codice)continue;
+      out.push({foglio:String(r.foglio),particella:String(r.particella),ref:String(r.INSPIREID_LOCALID||'').replace(/^IT\.AGE\.PLA\./,''),lng:Number(r.x)/1e6,lat:Number(r.y)/1e6})}
+  }
+  puntiPerComune.set(codice,out);return out;
+}
+
+/* ---------- WFS: contorni ---------- */
+let wfsBloccato=false;
+const contorni=new Map();   // riferimento -> geometria GeoJSON
+function urlWfs(sud,ovest,nord,est){
+  const u=WFS+'?language=ita&SERVICE=WFS&VERSION=2.0.0&REQUEST=GetFeature&TYPENAMES=CP:CadastralParcel'+
+    '&SRSNAME=urn:ogc:def:crs:EPSG::6706&COUNT=99&BBOX='+encodeURIComponent([sud,ovest,nord,est].map(v=>v.toFixed(7)).join(','));
+  const p=$('proxy').value.trim();
+  if(!p)return u;
+  return p.includes('{url}')?p.replace('{url}',encodeURIComponent(u)):p+encodeURIComponent(u);
+}
+function leggiGml(testo){
+  const doc=new DOMParser().parseFromString(testo,'application/xml');
+  if(doc.getElementsByTagName('parsererror').length||/ServiceException|ExceptionReport/.test(testo.slice(0,2000)))return null;
+  const out=[];
+  const membri=doc.getElementsByTagNameNS(NS_WFS,'member');
+  for(const m of membri){
+    const f=m.firstElementChild;if(!f)continue;
+    const val=nome=>{for(const c of f.children)if(c.localName===nome)return c.textContent.trim();return ''};
+    const ref=val('NATIONALCADASTRALREFERENCE')||val('INSPIREID_LOCALID').replace(/^IT\.AGE\.PLA\./,'');
+    const poligoni=[];
+    for(const pg of m.getElementsByTagNameNS(NS_GML,'Polygon')){
+      const anelli=[];
+      const ext=pg.getElementsByTagNameNS(NS_GML,'exterior')[0],ints=[...pg.getElementsByTagNameNS(NS_GML,'interior')];
+      for(const parte of [ext,...ints]){if(!parte)continue;const a=leggiAnello(parte);if(a)anelli.push(a)}
+      if(anelli.length)poligoni.push(anelli);
+    }
+    if(!poligoni.length)continue;
+    out.push({ref,label:val('LABEL'),geometry:poligoni.length===1?{type:'Polygon',coordinates:poligoni[0]}:{type:'MultiPolygon',coordinates:poligoni}});
+  }
+  return out;
+}
+// Coordinate GML in EPSG:6706 con assi lat,lon: diventano [lon,lat] per GeoJSON.
+function leggiAnello(parte){
+  let nums=[];
+  const pl=parte.getElementsByTagNameNS(NS_GML,'posList');
+  if(pl.length)nums=pl[0].textContent.trim().split(/\s+/).map(Number);
+  else for(const p of parte.getElementsByTagNameNS(NS_GML,'pos'))nums.push(...p.textContent.trim().split(/\s+/).map(Number));
+  const dim=+(pl[0]&&pl[0].getAttribute('srsDimension'))||2;
+  const a=[];for(let i=0;i+1<nums.length;i+=dim){const lat=nums[i],lon=nums[i+1];if(isFinite(lat)&&isFinite(lon))a.push([lon,lat])}
+  if(a.length<3)return null;
+  // se l'ordine fosse lon,lat (latitudine italiana sempre > 35, longitudine < 19) si scambia
+  if(a[0][1]<30&&a[0][0]>30)for(const p of a)p.reverse();
+  const f=a[0],l=a[a.length-1];if(f[0]!==l[0]||f[1]!==l[1])a.push([f[0],f[1]]);
+  return a;
+}
+async function contorno(p,signal){
+  if(contorni.has(p.ref))return contorni.get(p.ref);
+  if(wfsBloccato)return null;
+  const R=0.0004;   // circa 40 m attorno al punto interno
+  // il servizio rifiuta alcuni riquadri: si ritenta allargandoli di poco
+  for(const scarto of [0,0.00002,0.00005,0.0001]){
+    let r;
+    try{r=await fetch(urlWfs(p.lat-R-scarto,p.lng-R-scarto,p.lat+R+scarto,p.lng+R+scarto),{signal})}
+    catch(e){if(e.name==='AbortError')throw e;wfsBloccato=true;return null}
+    if(!r.ok)continue;
+    const membri=leggiGml(await r.text());
+    if(!membri)continue;
+    for(const m of membri)if(m.ref&&!contorni.has(m.ref))contorni.set(m.ref,m.geometry);
+    if(contorni.has(p.ref))return contorni.get(p.ref);
+    return null;
+  }
+  return null;
 }
 
 /* =====================================================================
-   INGRESSI: elenco di testo e modulo proprietari
+   MODULO: fogli e particelle
    ===================================================================== */
-const rowsState=[];   // righe della ricerca
-let ownersData=[];    // [{nome,colore,fogli:[{foglio,particelle,colore}]}]
-
-function renderOwners(){
-  const box=$('owners');box.textContent='';
-  ownersData.forEach((o,oi)=>{
-    const card=el('div',{class:'owner'});
-    const nome=el('input',{class:'txt',type:'text',placeholder:'es. Rossi',autocomplete:'off'});nome.value=o.nome;
-    nome.oninput=()=>{o.nome=nome.value;saveForm()};
-    const col=colorSelect(el('select',{class:'txt'}),o.colore,false);col.onchange=()=>{o.colore=col.value;saveForm()};
-    const del=el('button',{type:'button',class:'small x',title:'Togli il proprietario','aria-label':'Togli il proprietario',text:'×'});
-    del.onclick=()=>{ownersData.splice(oi,1);renderOwners();saveForm()};
-    card.append(el('div',{class:'head'},el('label',{class:'f'},'Proprietario',nome),el('label',{class:'f'},'Colore',col),del));
-    o.fogli.forEach((f,fi)=>{
-      const fg=el('input',{class:'txt',type:'text',inputmode:'numeric',placeholder:'8',autocomplete:'off'});fg.value=f.foglio;fg.oninput=()=>{f.foglio=fg.value;saveForm()};
-      const pt=el('input',{class:'txt',type:'text',placeholder:'285, 286, 290',autocomplete:'off'});pt.value=f.particelle;pt.oninput=()=>{f.particelle=pt.value;saveForm()};
-      const fc=colorSelect(el('select',{class:'txt'}),f.colore,true);fc.onchange=()=>{f.colore=fc.value;saveForm()};
-      const x=el('button',{type:'button',class:'small x',title:'Togli il foglio','aria-label':'Togli il foglio',text:'×'});
-      x.onclick=()=>{o.fogli.splice(fi,1);renderOwners();saveForm()};
-      card.append(el('div',{class:'fg'},el('label',{class:'f'},'Foglio',fg),el('label',{class:'f'},'Particelle',pt),el('label',{class:'f'},'Colore',fc),x));
-    });
-    const add=el('button',{type:'button',class:'small',text:'Aggiungi foglio'});
-    add.onclick=()=>{o.fogli.push({foglio:'',particelle:'',colore:''});renderOwners();saveForm()};
-    card.append(el('div',{class:'btns'},add));
-    box.append(card);
+let fogliData=[{foglio:'8',particelle:'285, 288, 290',colore:''}];
+function colorSelect(sel,value){sel.textContent='';sel.append(el('option',{value:'',text:'automatico'}));
+  for(const n of NOMI_COLORI)sel.append(el('option',{value:n,text:n}));sel.value=value||'';return sel}
+function renderFogli(){
+  const box=$('fogli');box.textContent='';
+  fogliData.forEach((f,i)=>{
+    const fg=el('input',{class:'txt',type:'text',inputmode:'numeric',placeholder:'8',autocomplete:'off','aria-label':'Foglio'});fg.value=f.foglio;fg.oninput=()=>{f.foglio=fg.value;saveForm()};
+    const pt=el('input',{class:'txt',type:'text',placeholder:'285, 288, 290',autocomplete:'off','aria-label':'Particelle'});pt.value=f.particelle;pt.oninput=()=>{f.particelle=pt.value;saveForm()};
+    const c=colorSelect(el('select',{class:'txt','aria-label':'Colore'}),f.colore);c.onchange=()=>{f.colore=c.value;saveForm()};
+    const x=el('button',{type:'button',class:'small x',title:'Togli il foglio','aria-label':'Togli il foglio',text:'×'});
+    x.onclick=()=>{fogliData.splice(i,1);if(!fogliData.length)fogliData.push({foglio:'',particelle:'',colore:''});renderFogli();saveForm()};
+    box.append(el('div',{class:'fg'},el('label',{class:'f'},'Foglio',fg),el('label',{class:'f'},'Particelle',pt),el('label',{class:'f'},'Colore',c),x));
   });
 }
-$('addOwner').onclick=()=>{ownersData.push({nome:'',colore:NOMI_COLORI[ownersData.length%NOMI_COLORI.length],fogli:[{foglio:'',particelle:'',colore:''}]});renderOwners();saveForm()};
-function saveForm(){store.set('form',JSON.stringify({list:$('list').value,listColor:$('listColor').value,comune:$('fComune').value,owners:ownersData}))}
+$('addFoglio').onclick=()=>{fogliData.push({foglio:'',particelle:'',colore:''});renderFogli();saveForm();
+  const ins=$('fogli').querySelectorAll('.fg');ins[ins.length-1].querySelector('input').focus()};
+function saveForm(){store.set('form2',JSON.stringify({comune:$('comune').value,codice:$('codice').value,fogli:fogliData}))}
 function loadForm(){
-  let f=null;try{f=JSON.parse(store.get('form')||'null')}catch(e){}
-  colorSelect($('listColor'),(f&&f.listColor)||'Rosso',false);
-  if(f){$('list').value=f.list||'';$('fComune').value=f.comune||'';ownersData=Array.isArray(f.owners)?f.owners:[]}
-  renderOwners();
+  const dl=$('elencoComuni');for(const c of COMUNI)dl.append(el('option',{value:c.nome,label:c.nome+' ('+c.prov+') '+c.codice}));
+  let f=null;try{f=JSON.parse(store.get('form2')||'null')}catch(e){}
+  if(f){$('comune').value=f.comune||'';$('codice').value=f.codice||'';if(Array.isArray(f.fogli)&&f.fogli.length)fogliData=f.fogli}
+  $('proxy').value=store.get('proxy')||'';
+  renderFogli();
 }
-['list','fComune'].forEach(id=>$(id).addEventListener('input',saveForm));$('listColor').addEventListener('change',saveForm);
+$('comune').addEventListener('input',()=>{const c=comuneDaNome($('comune').value);$('codice').value=c?c.codice:'';saveForm()});
+$('codice').addEventListener('input',()=>{$('codice').value=$('codice').value.toUpperCase();saveForm()});
+$('proxy').addEventListener('change',()=>{const v=$('proxy').value.trim();if(v)store.set('proxy',v);else store.del('proxy');wfsBloccato=false});
 
+const plainNum=s=>{const t=String(s??'').trim().toUpperCase();return t.replace(/^0+(?=[0-9A-Z])/,'')};
 function collectRows(){
-  const out=[],errs=[];
-  const listCol=$('listColor').value||'Rosso';
-  $('list').value.split(/\r?\n/).forEach((line,i)=>{
-    const t=line.trim();if(!t||t.startsWith('#'))return;
-    const parts=t.split(';').map(s=>s.trim());
-    const coord=parts[0].match(/^(-?\d+(?:\.\d+)?)\s*,\s*(-?\d+(?:\.\d+)?)$/);
-    if(coord){const owner=parts[1]||'';out.push({tipo:'punto',lat:+coord[1],lng:+coord[2],comune:'',foglio:'',particella:'',owner,colore:owner?null:listCol});return}
-    if(parts.length<3||!parts[0]||!parts[1]||!parts[2]){errs.push('riga '+(i+1)+': "'+t+'"');return}
-    const owner=parts[3]||'';
-    out.push({tipo:'rif',comune:parts[0],foglio:parts[1],particella:parts[2],owner,colore:owner?null:listCol});
+  const rows=[],errs=[];let auto=0;const usati=new Set(fogliData.map(f=>f.colore).filter(Boolean));
+  const liberi=NOMI_COLORI.filter(c=>!usati.has(c));
+  fogliData.forEach((f,i)=>{
+    const fg=plainNum(f.foglio);const pts=String(f.particelle||'').split(/[,;\s]+/).map(plainNum).filter(Boolean);
+    if(!fg&&!pts.length)return;
+    if(!fg){errs.push('manca il numero del foglio nella riga '+(i+1));return}
+    if(!pts.length){errs.push('mancano le particelle del foglio '+fg);return}
+    const colore=COLORI[f.colore]?f.colore:(liberi.length?liberi[auto++%liberi.length]:NOMI_COLORI[auto++%8]);
+    [...new Set(pts)].forEach(p=>rows.push({foglio:fg,particella:p,colore,proprio:!!COLORI[f.colore]}));
   });
-  const comune=$('fComune').value.trim();
-  ownersData.forEach((o,oi)=>{
-    const nome=o.nome.trim()||('Proprietario '+(oi+1));
-    o.fogli.forEach(f=>{
-      const pts=String(f.particelle||'').split(/[,\s]+/).map(s=>s.trim()).filter(Boolean);
-      if(!pts.length&&!String(f.foglio).trim())return;
-      if(!comune){errs.push('manca il comune per '+nome);return}
-      if(!String(f.foglio).trim()){errs.push('manca il numero del foglio per '+nome);return}
-      pts.forEach(p=>out.push({tipo:'rif',comune,foglio:String(f.foglio).trim(),particella:p,owner:nome,
-        colore:COLORI[f.colore]?f.colore:(COLORI[o.colore]?o.colore:'Rosso'),foglioProprio:!!COLORI[f.colore]&&f.colore!==o.colore}));
-    });
-  });
-  // colore del proprietario per le righe dell'elenco che indicano solo il nome
-  const ownCol={};ownersData.forEach(o=>{if(o.nome.trim())ownCol[o.nome.trim().toLowerCase()]=o.colore});
-  const used=new Set(out.map(r=>r.colore).filter(Boolean));
-  const free=NOMI_COLORI.filter(c=>!used.has(c));let k=0;const auto={};
-  out.forEach(r=>{if(!r.colore){const key=r.owner.toLowerCase();r.colore=ownCol[key]||auto[key]||(auto[key]=(free.length?free:NOMI_COLORI)[k++%(free.length||NOMI_COLORI.length)])}});
-  return {rows:out,errs};
+  return {rows,errs};
 }
 
 /* =====================================================================
    RICERCA
    ===================================================================== */
-let running=false,abortCtl=null;
-async function searchRow(r){
-  if(r.tipo==='punto'){
-    const items=await Zornade.locate(r.lat,r.lng);
-    if(!items.length)return {stato:'non',matches:[]};
-    const d=await Zornade.detail(items[0].fid);
-    const m=mergeP(items[0],d);r.comune=m.comune;r.foglio=m.foglio||'';r.particella=m.particella||'';
-    return {stato:'trovata',matches:[m]};
-  }
-  const want=plainNum(r.particella),wantF=plainNum(r.foglio);
-  const okLabel=it=>it.particella==null||plainNum(it.particella)===want;
-  const okFoglio=it=>it.foglio==null||plainNum(it.foglio)===wantF;
-  const okCom=it=>sameComune(it.comune,r.comune);
-  let cand=[];
-  // 1) comune + foglio + particella, provando le diverse scritture del foglio e del comune
-  outer:for(const f of foglioVariants(r.foglio)){
-    for(const c of comuneVariants(r.comune)){
-      const items=await Zornade.search({comune:c,foglio:f,label:r.particella});
-      cand=items.filter(it=>okLabel(it)&&okCom(it)&&okFoglio(it));
-      if(cand.length)break outer;
-    }
-  }
-  // 2) senza foglio: tutte le particelle con quel numero nel comune, poi controllo del foglio
-  if(!cand.length){
-    for(const c of comuneVariants(r.comune)){
-      const items=(await Zornade.search({comune:c,label:r.particella})).filter(it=>okLabel(it)&&okCom(it));
-      if(!items.length)continue;
-      for(const it of items){
-        if(it.foglio!=null){if(okFoglio(it))cand.push(it);continue}
-        const d=await Zornade.detail(it.fid);
-        if(d&&d.foglio!=null&&plainNum(d.foglio)===wantF)cand.push(mergeP(it,d));
-      }
-      break;
-    }
-  }
-  // stesso numero più volte senza foglio leggibile: si controlla il foglio dal dettaglio
-  if(cand.length>1&&cand.some(c=>c.foglio==null)){
-    const checked=[];
-    for(const it of cand){const d=await Zornade.detail(it.fid);if(!d||d.foglio==null||plainNum(d.foglio)===wantF)checked.push(mergeP(it,d))}
-    cand=checked;
-  }
-  const matches=[];
-  for(const it of cand.slice(0,10)){matches.push(mergeP(it,await Zornade.detail(it.fid)))}
-  return {stato:matches.length===0?'non':matches.length===1?'trovata':'piu',matches};
-}
-function mergeP(a,b){if(!b)return a;const o={...a};for(const k in b){if(b[k]!=null&&b[k]!=='')o[k]=b[k]}return o}
-
+const rowsState=[];let running=false,abortCtl=null,ricerca={comune:'',codice:''};
 async function run(){
   const {rows,errs}=collectRows();
-  if(errs.length){msg('Alcune righe non sono complete e vengono saltate: '+errs.slice(0,4).join('; ')+(errs.length>4?' ...':''),'err')}else msg('');
-  if(!rows.length){msg('Non ci sono particelle da cercare: scrivile nell\'elenco oppure aggiungi un proprietario con fogli e particelle.','err');return}
-  const key=$('key').value.trim();
-  if(!key){msg('Manca la chiave Zornade: incollala nel riquadro "Chiave Zornade" in alto.','err');$('key').focus();return}
-  Zornade.key=key;store.set('key',key);
-  rowsState.length=0;rows.forEach((r,i)=>{r.i=i;r.stato='attesa';r.matches=[];rowsState.push(r)});
-  renderTable();clearMap();
-  running=true;abortCtl=new AbortController();Zornade.signal=abortCtl.signal;Zornade.calls=0;
-  $('go').disabled=true;$('stop').disabled=false;setDownloads(false);
-  let done=0,fatal=null,next=0;
-  const worker=async()=>{
-    while(running&&!fatal&&next<rowsState.length){
-      const r=rowsState[next++];
-      try{const res=await searchRow(r);r.stato=res.stato;r.matches=res.matches}
-      catch(e){
-        if(e.name==='AbortError')break;
-        if(e instanceof ApiError&&e.kind!=='http'){fatal=e;r.stato='attesa';break}
-        r.stato='errore';r.nota=e instanceof ApiError?('Errore del servizio ('+e.detail.trim()+')'):'Errore imprevisto';
-      }
-      done++;status('Ricerca in corso: '+done+' di '+rowsState.length+' particelle');updateRow(r);drawRow(r);
+  if(!rows.length){msg('Non ci sono particelle da cercare: scrivi il foglio e almeno un numero di particella.','err');return}
+  let nome=$('comune').value.trim(),codice=$('codice').value.trim().toUpperCase();
+  if(!codice){const c=comuneDaNome(nome);if(c)codice=c.codice}
+  if(!nome&&codice){const c=comuneDaCodice(codice);if(c)nome=c.nome}
+  if(codice&&!/^[A-Z]\d{3}$/.test(codice)){msg('Il codice catastale deve avere una lettera e tre cifre, per esempio G311.','err');return}
+  running=true;abortCtl=new AbortController();$('go').disabled=true;$('stop').disabled=false;setDownloads(false);
+  rowsState.length=0;rows.forEach((r,i)=>{r.i=i;r.stato='attesa';r.matches=[];rowsState.push(r)});renderTable();clearMap();
+  msg(errs.length?'Alcune righe sono incomplete e vengono saltate: '+errs.join('; ')+'.':'',errs.length?'err':'');
+  let fatal=null;
+  try{
+    status('Preparo l\'archivio delle particelle...');
+    const lib=await caricaLibrerie();
+    const idx=await apriIndice(lib);
+    if(!codice){const k=plain(nome);const t=idx.filter(r=>plain(r.nome)===k);
+      if(t.length===1)codice=t[0].codice;
+      else throw new Errore('comune',t.length>1?'più comuni con questo nome: scrivi il codice catastale':'');}
+    const voce=idx.find(r=>r.codice===codice);
+    if(!voce)throw new Errore('codice');
+    if(!nome)nome=voce.nome;
+    ricerca={comune:nome,codice};
+    status('Leggo le particelle del comune di '+nome+'...');
+    const punti=await puntiDelComune(lib,codice,voce.file);
+    if(!running)throw new Errore('fermata');
+    for(const r of rowsState){
+      const f4=r.foglio.padStart(4,'0');
+      r.matches=punti.filter(p=>p.foglio===f4&&plainNum(p.particella)===r.particella).map(p=>({...p}));
+      r.stato=r.matches.length===0?'non':r.matches.length===1?'trovata':'piu';
     }
-  };
-  await Promise.all([worker(),worker(),worker()]);
+    renderTable();
+    let n=0;const daCercare=rowsState.filter(r=>r.matches.length);
+    for(const r of daCercare){
+      if(!running)break;
+      status('Contorni: '+(++n)+' di '+daCercare.length);
+      for(const m of r.matches){m.geometry=await contorno(m,abortCtl.signal);m.area=m.geometry?areaGeodetica(m.geometry):null}
+      if(r.stato==='trovata'&&!r.matches[0].geometry)r.stato='punto';
+      updateRow(r);drawRow(r);
+    }
+  }catch(e){if(e.name!=='AbortError'&&!(e instanceof Errore&&e.tipo==='fermata'))fatal=e}
   running=false;$('go').disabled=false;$('stop').disabled=true;
-  if(fatal)msg(errorText(fatal),'err');
   renderTable();redrawAll(true);
-  const n=countBy();
-  status('Trovate '+n.trovata+' su '+rowsState.length+(n.piu?' · '+n.piu+' con più risultati':'')+(n.non?' · '+n.non+' non trovate':''));
-  if(!fatal&&!errs.length)msg(n.trovata+n.piu?'Ricerca completata ('+Zornade.calls+' richieste al servizio).':'Nessuna particella trovata. Controlla il nome del comune e i numeri di foglio e particella.',n.trovata+n.piu?'ok':'err');
+  const c=countBy();
+  status(rowsState.length?('Trovate '+(c.trovata+c.punto)+' su '+rowsState.length+(c.non?' · '+c.non+' non trovate':'')+(c.piu?' · '+c.piu+' con più risultati':'')):'');
+  if(fatal)msg(testoErrore(fatal),'err');
+  else if(wfsBloccato&&rowsState.some(r=>r.stato==='punto'))msg('Le particelle sono state trovate, ma il servizio dei contorni dell\'Agenzia delle Entrate non ha risposto a questa pagina: di solito il servizio non accetta richieste che partono da una pagina web (i browser le bloccano per sicurezza, si chiama "blocco CORS"). Per questo le particelle sono segnate con un punto; ingrandendo, la mappa catastale mostra comunque i loro confini. Per avere i contorni serve un ripetitore (vedi "Collegamento ai contorni").','err');
+  else if(!errs.length&&rowsState.length)msg(c.trovata+c.punto+c.piu?'Ricerca completata.':'Nessuna particella trovata: controlla il codice catastale e i numeri di foglio e particella.',c.trovata+c.punto+c.piu?'ok':'err');
   setDownloads(rowsState.some(r=>r.matches.length));
 }
-function errorText(e){
-  if(e.kind==='rete')return 'Non è stato possibile parlare con il servizio Zornade. Le cause possibili sono due: manca la connessione a internet, oppure il servizio non accetta richieste che partono da una pagina web (i browser le bloccano per sicurezza, si chiama "blocco CORS"). In questo secondo caso questa pagina non può funzionare da sola: serve il vecchio programma sul computer, oppure chiedere a Zornade di abilitare le richieste dal sito dello studio.';
-  if(e.kind==='chiave')return 'La chiave Zornade non è stata accettata: è sbagliata o scaduta. Controllala su app.zornade.com/api e incollala di nuovo.';
-  if(e.kind==='quota')return 'Il servizio Zornade ha ricevuto troppe richieste in poco tempo (limite orario della chiave). Riprova fra un po\', magari con meno particelle per volta.';
-  return 'Il servizio Zornade ha risposto con un errore: '+e.detail;
+function testoErrore(e){
+  if(e.tipo==='librerie')return 'Non è stato possibile caricare il programma che legge l\'archivio delle particelle (cdn.jsdelivr.net). Controlla la connessione a internet e riprova.';
+  if(e.tipo==='archivio')return 'Non è stato possibile leggere l\'archivio con la posizione delle particelle (raw.githubusercontent.com). Controlla la connessione a internet e riprova fra poco.';
+  if(e.tipo==='codice')return 'Il codice catastale '+$('codice').value.trim().toUpperCase()+' non risulta nell\'archivio. Controlla che sia giusto (es. G311 per Pannarano).';
+  if(e.tipo==='comune')return 'Non trovo il comune "'+$('comune').value.trim()+'"'+(e.dett?': '+e.dett:'')+'. Scrivi il codice catastale nel riquadro accanto.';
+  return 'Errore imprevisto durante la ricerca. Riprova; se si ripete, segnala il messaggio: '+(e.message||e);
 }
-function countBy(){const n={trovata:0,piu:0,non:0,errore:0,attesa:0};rowsState.forEach(r=>n[r.stato]=(n[r.stato]||0)+1);return n}
+function countBy(){const n={trovata:0,punto:0,piu:0,non:0,attesa:0};rowsState.forEach(r=>n[r.stato]=(n[r.stato]||0)+1);return n}
 $('go').onclick=()=>{if(!running)run()};
 $('stop').onclick=()=>{running=false;if(abortCtl)abortCtl.abort();status('Ricerca fermata')};
 $('clear').onclick=()=>{if(running)return;rowsState.length=0;renderTable();clearMap();setDownloads(false);msg('');status('Risultati svuotati')};
 
+/* ---------- superficie (geodetica, sull'ellissoide approssimato a sfera WGS84) ---------- */
+function areaAnello(a){const R=6378137,d=Math.PI/180;let s=0;
+  for(let i=0;i<a.length-1;i++){const p1=a[i],p2=a[i+1];s+=(p2[0]-p1[0])*d*(2+Math.sin(p1[1]*d)+Math.sin(p2[1]*d))}
+  return Math.abs(s*R*R/2)}
+function areaGeodetica(g){const poly=p=>areaAnello(p[0])-p.slice(1).reduce((t,h)=>t+areaAnello(h),0);
+  return g.type==='Polygon'?poly(g.coordinates):g.type==='MultiPolygon'?g.coordinates.reduce((t,p)=>t+poly(p),0):null}
+
 /* ---------- tabella ---------- */
-const ESITI={trovata:'trovata',non:'non trovata',piu:'più risultati',attesa:'in attesa',errore:'errore'};
+const ESITI={trovata:'trovata',punto:'trovata (solo punto)',non:'non trovata',piu:'più risultati',attesa:'in attesa'};
 const fmtN=(v,d)=>v==null?'':v.toLocaleString('it-IT',{maximumFractionDigits:d,minimumFractionDigits:0});
-const omiText=o=>!o?'':(o.min!=null?fmtN(o.min,0)+'–'+fmtN(o.max,0):fmtN(o.val,0));
-const firstVal=(r,k)=>{const v=r.matches.map(m=>m[k]).filter(x=>x!=null&&x!=='');return v.length?v[0]:null};
 function renderTable(){
-  const tb=$('tbody');tb.textContent='';
-  $('secRes').hidden=!rowsState.length;
-  rowsState.forEach(r=>{const tr=el('tr');tr.dataset.i=r.i;tb.append(tr);fillRow(tr,r)});
-  const n=countBy();
-  $('summary').textContent=rowsState.length?(rowsState.length+' particelle: '+n.trovata+' trovate, '+n.piu+' con più risultati, '+n.non+' non trovate'+(n.errore?', '+n.errore+' con errore':'')+'.'):'';
+  const tb=$('tbody');tb.textContent='';$('secRes').hidden=!rowsState.length;
+  rowsState.forEach(r=>{const tr=el('tr');tr.dataset.i=r.i;tb.append(tr);fillRow(tr,r)});summary();
 }
+function summary(){const n=countBy();$('summary').textContent=rowsState.length?(ricerca.comune?ricerca.comune+' ('+ricerca.codice+'): ':'')+rowsState.length+' particelle, '+(n.trovata+n.punto)+' trovate, '+n.non+' non trovate'+(n.piu?', '+n.piu+' con più risultati':'')+'.':''}
 function fillRow(tr,r){
   tr.textContent='';
-  const cls=r.stato==='trovata'?'trovata':r.stato==='piu'?'piu':r.stato==='attesa'?'attesa':'non';
-  const area=r.matches.length===1?r.matches[0].area:null;
+  const cls={trovata:'trovata',punto:'punto',piu:'piu',attesa:'attesa',non:'non'}[r.stato];
   const sw=el('span',{class:'sw'});sw.style.background=COLORI[r.colore];
-  const st=el('td',{class:'st '+cls,text:ESITI[r.stato]+(r.stato==='piu'?' ('+r.matches.length+')':'')});if(r.nota)st.title=r.nota;
-  tr.append(el('td',{text:r.tipo==='punto'&&!r.comune?(r.lat+', '+r.lng):r.comune}),el('td',{class:'n',text:r.foglio}),el('td',{class:'n',text:r.particella}),
-    el('td',{},sw,r.owner||'—'),st,el('td',{class:'n',text:fmtN(area,0)}),el('td',{class:'n',text:firstVal(r,'zona')??''}),el('td',{class:'n',text:r.matches.length?omiText(r.matches[0].omi):''}));
+  const area=r.matches.length===1?r.matches[0].area:null;
+  tr.append(el('td',{class:'n'},sw,r.foglio),el('td',{class:'n',text:r.particella}),el('td',{class:'st '+cls,text:ESITI[r.stato]+(r.stato==='piu'?' ('+r.matches.length+')':'')}),
+    el('td',{class:'n',text:fmtN(area,0)}),el('td',{text:r.matches.map(m=>m.ref).join(', ')}));
   tr.onclick=()=>zoomRow(r);
 }
-function updateRow(r){const tr=$('tbody').querySelector('tr[data-i="'+r.i+'"]');if(tr)fillRow(tr,r);const n=countBy();
-  $('summary').textContent=rowsState.length+' particelle: '+n.trovata+' trovate, '+n.piu+' con più risultati, '+n.non+' non trovate'+(n.errore?', '+n.errore+' con errore':'')+'.'}
+function updateRow(r){const tr=$('tbody').querySelector('tr[data-i="'+r.i+'"]');if(tr)fillRow(tr,r);summary()}
 
 /* =====================================================================
    MAPPA
    ===================================================================== */
-let map=null,results=null,legend=null,zoomHint=null;
+// Mappa catastale WMS: il servizio lavora in coordinate geografiche (EPSG:6706), quindi ogni
+// tassello si chiede con il riquadro in gradi (WMS 1.1.1: lon,lat). Da zoom 16 in su la
+// differenza con la proiezione della mappa è inferiore a un pixel. Lo stesso codice è
+// copiato nella pagina dei poligoni.
+const CATASTO_JS=`function catastoLayer(){
+  var Catasto=L.TileLayer.WMS.extend({
+    onAdd:function(m){L.TileLayer.WMS.prototype.onAdd.call(this,m);this.wmsParams.srs='EPSG:6706'},
+    getTileUrl:function(c){var b=this._tileCoordsToNwSe(c),nw=b[0],se=b[1];
+      var p=L.extend({},this.wmsParams,{BBOX:[nw.lng,se.lat,se.lng,nw.lat].join(',')});
+      return this._url+L.Util.getParamString(p,this._url,true)}});
+  return new Catasto('https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php',{
+    layers:'CP.CadastralParcel,fabbricati,vestizioni',styles:'',format:'image/png',transparent:true,version:'1.1.1',
+    minZoom:16,maxZoom:21,maxNativeZoom:20,opacity:.9,attribution:'Cartografia catastale &copy; Agenzia delle Entrate'});
+}
+function baseLayers(){return {
+  'Satellite':L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:19,maxZoom:21,attribution:'&copy; Esri, Maxar, Earthstar Geographics'}),
+  'Mappa':L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxNativeZoom:19,maxZoom:21,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'})}}
+function zoomHint(map,catasto){var h=L.control({position:'topleft'});
+  h.onAdd=function(){var d=L.DomUtil.create('div','zoomhint');d.textContent='Ingrandisci per vedere la mappa catastale';return d};
+  function upd(){var show=map.getZoom()<16&&map.hasLayer(catasto);if(show&&!h._map)h.addTo(map);if(!show&&h._map)h.remove()}
+  map.on('zoomend overlayadd overlayremove',upd);upd()}`;
+let map=null,results=null,legend=null;
 const rowLayers=new Map();
 function initMap(){
   if(typeof L==='undefined'){status('La libreria della mappa non si è caricata (manca la connessione?). La ricerca e i file funzionano lo stesso.');return}
-  map=L.map('map',{zoomControl:true,maxZoom:21}).setView([41.0,14.8],8);
-  const sat=L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:19,maxZoom:21,attribution:'© Esri, Maxar, Earthstar Geographics'});
-  const osm=L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxNativeZoom:19,maxZoom:21,attribution:'© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'});
-  // Mappa catastale WMS dell'Agenzia delle Entrate. Il servizio lavora in coordinate geografiche
-  // (EPSG:6706): ogni tassello viene chiesto con il suo riquadro in gradi. Da zoom 16 in su
-  // la differenza con la proiezione della mappa è inferiore a un pixel.
-  const Catasto=L.TileLayer.WMS.extend({
-  onAdd(m){L.TileLayer.WMS.prototype.onAdd.call(this,m);this.wmsParams.srs='EPSG:6706'},
-  getTileUrl(c){
-    const b=this._tileCoordsToNwSe(c),nw=b[0],se=b[1];
-    const p=Object.assign({},this.wmsParams,{BBOX:[nw.lng,se.lat,se.lng,nw.lat].join(',')});
-    return this._url+L.Util.getParamString(p,this._url,true);
-  }});
-  const catasto=new Catasto('https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php',{
-    layers:'CP.CadastralParcel,fabbricati,vestizioni',styles:'',format:'image/png',transparent:true,version:'1.1.1',
-    minZoom:16,maxZoom:21,maxNativeZoom:20,opacity:.9,attribution:'Cartografia catastale © Agenzia delle Entrate'});
-  sat.addTo(map);catasto.addTo(map);
-  L.control.layers({'Satellite':sat,'Mappa':osm},{'Mappa catastale (Agenzia delle Entrate)':catasto},{collapsed:window.matchMedia('(max-width:760px)').matches}).addTo(map);
+  (0,eval)(CATASTO_JS);
+  map=L.map('map',{maxZoom:21}).setView([41.0,14.7],10);
+  const basi=baseLayers(),catasto=catastoLayer();
+  basi.Satellite.addTo(map);catasto.addTo(map);
+  L.control.layers(basi,{'Mappa catastale (Agenzia delle Entrate)':catasto},{collapsed:window.matchMedia('(max-width:760px)').matches}).addTo(map);
+  zoomHint(map,catasto);
   results=L.featureGroup().addTo(map);
-  zoomHint=L.control({position:'topleft'});
-  zoomHint.onAdd=()=>{const d=L.DomUtil.create('div','zoomhint');d.textContent='Ingrandisci per vedere la mappa catastale';return d};
-  const upd=()=>{const show=map.getZoom()<16&&map.hasLayer(catasto);if(show&&!zoomHint._map)zoomHint.addTo(map);if(!show&&zoomHint._map)zoomHint.remove()};
-  map.on('zoomend overlayadd overlayremove',upd);upd();
-  legend=L.control({position:'bottomright'});
-  legend.onAdd=()=>L.DomUtil.create('div','legend');
+  legend=L.control({position:'bottomright'});legend.onAdd=()=>L.DomUtil.create('div','legend');
 }
 function clearMap(){if(!map)return;results.clearLayers();rowLayers.clear();if(legend._map)legend.remove()}
-function label(m,r){const f=m.foglio??r.foglio,p=m.particella??r.particella;return 'Fg.'+plainNum(f)+'/Pt.'+plainNum(p)}
+const etichetta=r=>'Fg.'+r.foglio+'/Pt.'+r.particella;
 function drawRow(r){
-  if(!map)return;
+  if(!map||!r.matches.length)return;
   const old=rowLayers.get(r.i);if(old)results.removeLayer(old);
-  if(!r.matches.length)return;
   const color=COLORI[r.colore]||COLORI.Rosso,g=L.featureGroup();
   r.matches.forEach(m=>{
-    const tip=label(m,r)+(r.owner?' · '+r.owner:'');
-    let lay=null;
-    if(m.geometry){lay=L.geoJSON(m.geometry,{style:{color,weight:3,opacity:1,fillColor:color,fillOpacity:.12,dashArray:r.stato==='piu'?'6 5':null}})}
-    else if(m.centroid){lay=L.circleMarker(m.centroid,{radius:7,color,weight:3,fillOpacity:.3})}
-    if(!lay)return;
-    // etichetta come livello a sé, così viene tolta insieme al contorno
-    const at=lay.getBounds?lay.getBounds().getCenter():lay.getLatLng();
-    g.addLayer(L.tooltip({permanent:true,direction:'center',className:'plab',interactive:false}).setLatLng(at).setContent(label(m,r)));
-    lay.bindPopup(()=>{const d=el('div');d.append(el('b',{text:m.comune||r.comune}),el('br'),document.createTextNode(tip),el('br'),
-      document.createTextNode('Superficie: '+(m.area!=null?fmtN(m.area,0)+' m²':'n.d.')+' · Zona sismica: '+(m.zona??'n.d.')+' · OMI: '+(omiText(m.omi)||'n.d.')));
-      if(r.stato==='piu')d.append(el('br'),el('i',{text:'Una di più particelle con lo stesso numero: controllare.'}));return d});
+    let lay;
+    if(m.geometry)lay=L.geoJSON(m.geometry,{style:{color,weight:3,opacity:1,fillColor:color,fillOpacity:.12,dashArray:r.stato==='piu'?'6 5':null}});
+    else lay=L.circleMarker([m.lat,m.lng],{radius:7,color,weight:3,fillOpacity:.35});
+    lay.bindPopup(()=>{const d=el('div');d.append(el('b',{text:etichetta(r)}),el('br'),document.createTextNode(ricerca.comune+' · '+m.ref),el('br'),
+      document.createTextNode(m.area!=null?'Superficie calcolata: '+fmtN(m.area,0)+' m²':'Contorno non disponibile: il punto è dentro la particella'));
+      if(r.stato==='piu')d.append(el('br'),el('i',{text:'Più particelle con lo stesso numero (sezioni diverse): controllare.'}));return d});
     g.addLayer(lay);
+    const at=m.geometry?lay.getBounds().getCenter():L.latLng(m.lat,m.lng);
+    g.addLayer(L.tooltip({permanent:true,direction:m.geometry?'center':'right',offset:m.geometry?[0,0]:[8,0],className:'plab',interactive:false}).setLatLng(at).setContent(etichetta(r)));
   });
   g.addTo(results);rowLayers.set(r.i,g);
 }
@@ -564,34 +484,29 @@ function redrawAll(fit){
   if(!map)return;rowsState.forEach(r=>{if(!rowLayers.has(r.i))drawRow(r)});renderLegend();
   if(fit&&results.getLayers().length){const b=results.getBounds();if(b.isValid())map.fitBounds(b,{padding:[30,30],maxZoom:18})}
 }
-function legendEntries(){
-  const seen=new Map();
-  rowsState.filter(r=>r.matches.length).forEach(r=>{
-    const name=r.foglioProprio?((r.owner||'Elenco')+' - Fg. '+plainNum(r.foglio)):(r.owner||'Elenco');
-    const k=name+'|'+r.colore;if(!seen.has(k))seen.set(k,{name,colore:r.colore});
-  });
-  return [...seen.values()];
-}
+function legendEntries(){const seen=new Map();
+  rowsState.filter(r=>r.matches.length).forEach(r=>{const k='Fg. '+r.foglio+'|'+r.colore;if(!seen.has(k))seen.set(k,{name:'Fg. '+r.foglio,colore:r.colore})});
+  return [...seen.values()]}
 function renderLegend(){
   if(!map)return;const e=legendEntries();if(legend._map)legend.remove();if(!e.length)return;
-  legend.addTo(map);const d=legend.getContainer();d.textContent='';d.append(el('strong',{text:'Legenda'}));
+  legend.addTo(map);const d=legend.getContainer();d.textContent='';d.append(el('strong',{text:ricerca.comune||'Legenda'}));
   e.forEach(x=>{const s=el('span',{class:'sw'});s.style.borderColor=COLORI[x.colore];d.append(el('div',{},s,x.name))});
 }
 function zoomRow(r){
-  if(!map)return;const g=rowLayers.get(r.i);
-  if(g){const b=g.getBounds();if(b.isValid())map.fitBounds(b,{padding:[40,40],maxZoom:19});g.eachLayer(l=>{if(l.openPopup)l.openPopup()})}
-  else if(r.tipo==='punto')map.setView([r.lat,r.lng],18);
+  if(!map)return;const g=rowLayers.get(r.i);if(!g)return;
+  const b=g.getBounds();if(b.isValid())map.fitBounds(b,{padding:[40,40],maxZoom:19});
+  g.eachLayer(l=>{if(l.openPopup&&l.getPopup&&l.getPopup())l.openPopup()});
   if(window.matchMedia('(max-width:760px)').matches)$('map').scrollIntoView({behavior:'smooth'});
 }
 
 /* =====================================================================
-   FILE DA SCARICARE
+   FILE DA SCARICARE E PAGINA DEI POLIGONI
    ===================================================================== */
-function setDownloads(on){['dlCsv','dlGeo','dlKml'].forEach(id=>$(id).disabled=!on)}
+const PULSANTI=['dlCsv','dlGeo','dlKml','openPage','dlPage'];
+function setDownloads(on){PULSANTI.forEach(id=>$(id).disabled=!on);if(!on)$('pageLinkBox').hidden=true}
 function baseName(){
-  const owners=[...new Set(rowsState.map(r=>r.owner).filter(Boolean))];
-  const comuni=[...new Set(rowsState.map(r=>r.comune).filter(Boolean))];
-  let n=owners.length?owners.join('_'):(comuni.length?comuni.join('_'):'particelle');
+  const fogli=[...new Set(rowsState.map(r=>r.foglio))];
+  let n=(ricerca.comune||'particelle')+(fogli.length?'_Fg'+fogli.join('-'):'');
   n=n.normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9_.\- ]+/g,'').replace(/\s+/g,'_').slice(0,60);
   return n||'particelle';
 }
@@ -603,27 +518,19 @@ function download(text,name,type){
 const dec=(v,d)=>v==null?'':(Math.round(v*10**d)/10**d).toString().replace('.',',');
 function csvCell(v){const s=v==null?'':String(v);return /[;"\r\n]/.test(s)?'"'+s.replace(/"/g,'""')+'"':s}
 function buildCsv(){
-  const head=['Comune','Foglio','Particella','Proprietario','Colore','Esito','Superficie m²','Zona sismica','OMI €/m² min','OMI €/m² max','OMI €/m²','Latitudine','Longitudine','Codice Zornade (FID)','Note'];
+  const head=['Comune','Codice catastale','Foglio','Particella','Esito','Superficie calcolata m²','Riferimento catastale','Latitudine','Longitudine','Colore','Note'];
   const lines=[head.join(';')];
-  rowsState.forEach(r=>{
-    const ms=r.matches.length?r.matches:[{}];
-    ms.forEach(m=>{
-      const c=m.centroid||(m.geometry?centroidOf(m.geometry):null)||(r.tipo==='punto'?[r.lat,r.lng]:null);
-      const o=m.omi||{};
-      lines.push([m.comune||r.comune,m.foglio??r.foglio,m.particella??r.particella,r.owner,r.colore,ESITI[r.stato],dec(m.area,0),m.zona??'',
-        dec(o.min,0),dec(o.max,0),dec(o.val,0),c?dec(c[0],6):'',c?dec(c[1],6):'',m.fid??'',r.nota||(r.stato==='piu'?'più particelle con lo stesso numero: controllare':'')].map(csvCell).join(';'));
-    });
-  });
+  rowsState.forEach(r=>{(r.matches.length?r.matches:[{}]).forEach(m=>{
+    lines.push([ricerca.comune,ricerca.codice,r.foglio,r.particella,ESITI[r.stato],dec(m.area,0),m.ref||'',m.lat!=null?dec(m.lat,6):'',m.lng!=null?dec(m.lng,6):'',r.colore,
+      r.stato==='piu'?'più particelle con lo stesso numero: controllare':(r.stato==='punto'?'contorno non disponibile, coordinate di un punto interno':'')].map(csvCell).join(';'))})});
   return '﻿'+lines.join('\r\n')+'\r\n';
 }
-function centroidOf(g){let sx=0,sy=0,n=0;const w=a=>{if(typeof a[0]==='number'){sx+=a[0];sy+=a[1];n++}else a.forEach(w)};w(g.coordinates);return n?[sy/n,sx/n]:null}
 function features(){
   const out=[];
   rowsState.forEach(r=>r.matches.forEach(m=>{
-    const geom=m.geometry||(m.centroid?{type:'Point',coordinates:[m.centroid[1],m.centroid[0]]}:null);if(!geom)return;
-    out.push({type:'Feature',geometry:geom,properties:{comune:m.comune||r.comune,foglio:m.foglio??r.foglio,particella:m.particella??r.particella,
-      etichetta:label(m,r),proprietario:r.owner||'',colore:r.colore,colore_hex:COLORI[r.colore],esito:ESITI[r.stato],superficie_m2:m.area,
-      zona_sismica:m.zona,omi_eur_m2:m.omi?(m.omi.val??null):null,omi_min:m.omi?(m.omi.min??null):null,omi_max:m.omi?(m.omi.max??null):null,fid:m.fid}});
+    out.push({type:'Feature',geometry:m.geometry||{type:'Point',coordinates:[m.lng,m.lat]},properties:{comune:ricerca.comune,codice_catastale:ricerca.codice,
+      foglio:r.foglio,particella:r.particella,etichetta:etichetta(r),riferimento:m.ref,esito:ESITI[r.stato],superficie_calcolata_m2:m.area!=null?Math.round(m.area):null,
+      colore:r.colore,colore_hex:COLORI[r.colore]}});
   }));
   return out;
 }
@@ -638,21 +545,72 @@ function kmlGeom(g){
   return '';
 }
 function buildKml(){
-  const fs=features();
   const styles=NOMI_COLORI.map(n=>'<Style id="c'+n+'"><LineStyle><color>'+kmlColor(COLORI[n],'ff')+'</color><width>3</width></LineStyle><PolyStyle><color>'+kmlColor(COLORI[n],'33')+'</color></PolyStyle></Style>').join('\n');
-  const pm=fs.map(f=>{const p=f.properties;
-    const desc=[p.comune,p.proprietario&&('Proprietario: '+p.proprietario),p.superficie_m2!=null&&('Superficie: '+fmtN(p.superficie_m2,0)+' m²'),p.zona_sismica!=null&&('Zona sismica: '+p.zona_sismica),p.esito].filter(Boolean).join(' - ');
+  const pm=features().map(f=>{const p=f.properties;
+    const desc=[p.comune+' ('+p.codice_catastale+')',p.riferimento,p.superficie_calcolata_m2!=null&&('Superficie calcolata: '+fmtN(p.superficie_calcolata_m2,0)+' m²'),p.esito].filter(Boolean).join(' - ');
     return '<Placemark><name>'+xml(p.etichetta)+'</name><description>'+xml(desc)+'</description><styleUrl>#c'+p.colore+'</styleUrl>'+kmlGeom(f.geometry)+'</Placemark>'}).join('\n');
   return '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>'+xml(baseName())+'</name>\n'+styles+'\n'+pm+'\n</Document></kml>\n';
 }
+const geojson=()=>({type:'FeatureCollection',features:features()});
+function buildPage(){
+  const dati={titolo:ricerca.comune+' - particelle',comune:ricerca.comune,codice:ricerca.codice,legenda:legendEntries().map(x=>({nome:x.name,colore:COLORI[x.colore]})),geojson:geojson()};
+  const json=JSON.stringify(dati).replace(/</g,'\\u003c');
+  return `<!doctype html>
+<html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>${xml(dati.titolo)}</title>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" crossorigin="">
+<style>html,body{height:100%;margin:0;background:#eef0ee;font:14px/1.45 "Segoe UI",system-ui,-apple-system,Arial,sans-serif;color:#1d2420}
+#map{position:absolute;inset:0}
+.box{background:#fff;border:1px solid #d3d9d4;border-radius:6px;padding:6px 10px;font-size:12.5px;max-width:240px;max-height:45vh;overflow:auto}
+.box strong{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#5f6b64;margin-bottom:3px}
+.box div{display:flex;align-items:center;gap:5px;line-height:1.6}
+.sw{display:inline-block;width:14px;height:10px;border:2px solid;border-radius:2px}
+.leaflet-tooltip.plab{background:rgba(255,255,255,.85);border:0;box-shadow:none;padding:0 3px;font:600 11px "Segoe UI",system-ui,Arial,sans-serif;color:#1d2420}
+.leaflet-tooltip.plab:before{display:none}
+.zoomhint{background:rgba(255,255,255,.9);border:1px solid #d3d9d4;border-radius:6px;padding:3px 8px;font-size:12px;color:#5f6b64}</style>
+</head><body><div id="map" aria-label="Mappa delle particelle"></div>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" crossorigin=""><\/script>
+<script>
+var DATI=${json};
+${CATASTO_JS}
+var map=L.map('map',{maxZoom:21}),basi=baseLayers(),catasto=catastoLayer();
+basi.Satellite.addTo(map);catasto.addTo(map);
+L.control.layers(basi,{'Mappa catastale (Agenzia delle Entrate)':catasto},{collapsed:innerWidth<760}).addTo(map);
+zoomHint(map,catasto);
+function fmt(v){return v==null?'':v.toLocaleString('it-IT',{maximumFractionDigits:0})}
+var gruppo=L.featureGroup().addTo(map);
+DATI.geojson.features.forEach(function(f){
+  var p=f.properties,c=p.colore_hex||'#d62728',lay;
+  if(f.geometry.type==='Point')lay=L.circleMarker([f.geometry.coordinates[1],f.geometry.coordinates[0]],{radius:7,color:c,weight:3,fillOpacity:.35});
+  else lay=L.geoJSON(f.geometry,{style:{color:c,weight:3,fillColor:c,fillOpacity:.12}});
+  var t=document.createElement('div');var b=document.createElement('b');b.textContent=p.etichetta;t.appendChild(b);
+  t.appendChild(document.createElement('br'));t.appendChild(document.createTextNode(p.comune+' · '+p.riferimento));
+  t.appendChild(document.createElement('br'));t.appendChild(document.createTextNode(p.superficie_calcolata_m2!=null?'Superficie calcolata: '+fmt(p.superficie_calcolata_m2)+' m²':'Contorno non disponibile'));
+  lay.bindPopup(t);gruppo.addLayer(lay);
+  var at=f.geometry.type==='Point'?L.latLng(f.geometry.coordinates[1],f.geometry.coordinates[0]):lay.getBounds().getCenter();
+  gruppo.addLayer(L.tooltip({permanent:true,direction:'center',className:'plab',interactive:false}).setLatLng(at).setContent(p.etichetta));
+});
+var leg=L.control({position:'bottomright'});
+leg.onAdd=function(){var d=L.DomUtil.create('div','box');var s=document.createElement('strong');s.textContent=DATI.comune+' ('+DATI.codice+')';d.appendChild(s);
+  var tot=0,n=0;DATI.geojson.features.forEach(function(f){if(f.properties.superficie_calcolata_m2!=null){tot+=f.properties.superficie_calcolata_m2;n++}});
+  DATI.legenda.forEach(function(x){var r=document.createElement('div'),w=document.createElement('span');w.className='sw';w.style.borderColor=x.colore;r.appendChild(w);r.appendChild(document.createTextNode(x.nome));d.appendChild(r)});
+  if(n){var r=document.createElement('div');r.textContent='Totale calcolato: '+fmt(tot)+' m² ('+n+' particelle)';d.appendChild(r)}
+  return d};
+leg.addTo(map);
+var bb=gruppo.getBounds();if(bb.isValid())map.fitBounds(bb,{padding:[30,30],maxZoom:18});else map.setView([41.9,12.5],6);
+<\/script></body></html>`;
+}
 $('dlCsv').onclick=()=>download(buildCsv(),baseName()+'.csv','text/csv;charset=utf-8');
-$('dlGeo').onclick=()=>download(JSON.stringify({type:'FeatureCollection',features:features()},null,1),baseName()+'.geojson','application/geo+json');
+$('dlGeo').onclick=()=>download(JSON.stringify(geojson(),null,1),baseName()+'.geojson','application/geo+json');
 $('dlKml').onclick=()=>download(buildKml(),baseName()+'.kml','application/vnd.google-earth.kml+xml');
-
-/* ---------- chiave ---------- */
-$('key').value=store.get('key')||'';
-$('key').addEventListener('change',()=>{const k=$('key').value.trim();if(k)store.set('key',k)});
-$('forget').onclick=()=>{store.del('key');$('key').value='';msg('Chiave cancellata da questo browser.','ok')};
+$('dlPage').onclick=()=>download(buildPage(),baseName()+'_poligoni.html','text/html;charset=utf-8');
+let pageUrl=null;
+$('openPage').onclick=()=>{
+  if(pageUrl)URL.revokeObjectURL(pageUrl);
+  pageUrl=URL.createObjectURL(new Blob([buildPage()],{type:'text/html;charset=utf-8'}));
+  const w=window.open(pageUrl,'_blank');
+  $('pageLink').href=pageUrl;$('pageLinkBox').hidden=!!w;
+};
 
 loadForm();
 initMap();
