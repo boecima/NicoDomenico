@@ -164,7 +164,7 @@ canvas{display:block;width:100%;height:100%;touch-action:none}
       <button id="ghList" type="button">Apri da GitHub</button>
     </div>
     <select id="ghFiles" class="txt" hidden aria-label="Progetti salvati su GitHub"></select>
-    <p class="hint" id="ghMsg">Salva lo stesso progetto di "Salva progetto" nel repository, con il nome del lavoro; "Apri da GitHub" elenca i progetti salvati.</p>
+    <p class="hint" id="ghMsg">"Salva su GitHub" (serve la chiave) salva lo stesso progetto di "Salva progetto" con il nome del lavoro. "Apri da GitHub" elenca i progetti salvati e funziona da qualsiasi PC senza chiave; dopo l'apertura l'indirizzo della pagina è il link da mandare.</p>
   </section>
 
   <section>
@@ -649,6 +649,15 @@ function ghCfg(){const c={repo:$('ghRepo').value.trim().replace(/^https?:\/\/git
   GH.set('repo',c.repo);GH.set('branch',c.branch);GH.set('dir',c.dir);if(c.tok)GH.set('tok',c.tok);return c;}
 function ghUrl(c,p){return 'https://api.github.com/repos/'+c.repo+'/contents/'+p.split('/').filter(Boolean).map(encodeURIComponent).join('/');}
 function ghHead(c,raw){const h={Accept:raw?'application/vnd.github.raw':'application/vnd.github+json'};if(c.tok)h.Authorization='Bearer '+c.tok;return h;}
+// lettura: indirizzo diretto del file (repository pubblico, nessuna chiave, nessun limite delle API);
+// se non risponde (repository privato) si passa alle API con la chiave
+async function ghGet(c,p){ const parts=p.split('/').filter(Boolean).map(encodeURIComponent).join('/');
+  let r=await fetch('https://raw.githubusercontent.com/'+c.repo+'/'+encodeURIComponent(c.branch)+'/'+parts+'?t='+Date.now(),{cache:'no-store'});
+  if(!r.ok&&c.tok) r=await fetch(ghUrl(c,p)+'?ref='+encodeURIComponent(c.branch)+'&t='+Date.now(),{headers:ghHead(c,true),cache:'no-store'});
+  return r; }
+const ELENCO='elenco.json';
+async function ghElenco(c){ const r=await ghGet(c,(c.dir?c.dir+'/':'')+ELENCO); if(!r.ok) return null; try{ return await r.json(); }catch(e){ return null; } }
+function ghLink(path){ return location.origin+location.pathname+'#apri='+encodeURIComponent(path); }
 async function ghErr(r){let m='';try{m=(await r.json()).message||''}catch(e){}return new Error(r.status+(m?' '+m:''));}
 function b64(str){const u=new TextEncoder().encode(str);let s='';for(let i=0;i<u.length;i+=0x8000)s+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(s);}
 $('ghSave').onclick=async()=>{if(!img){ghMsg('Carica prima l\'immagine aerea');return;}const c=ghCfg();
@@ -657,25 +666,40 @@ $('ghSave').onclick=async()=>{if(!img){ghMsg('Carica prima l\'immagine aerea');r
   const out={versione:4,name:P.name,map:P.map,stralcio:P.stralcio,shots:P.shots,note:notesObj(),salvato:new Date().toISOString()};
   try{ghMsg('Salvataggio su GitHub...');let sha;
     const g=await fetch(ghUrl(c,path)+'?ref='+encodeURIComponent(c.branch)+'&t='+Date.now(),{headers:ghHead(c),cache:'no-store'});
+    if(g.status===401)throw new Error('401: GitHub non riconosce la chiave (rifalla e incollala di nuovo)');
     if(g.ok)sha=(await g.json()).sha;else if(g.status!==404)throw await ghErr(g);
     const r=await fetch(ghUrl(c,path),{method:'PUT',headers:Object.assign(ghHead(c),{'Content-Type':'application/json'}),body:JSON.stringify({message:'Coni ottici: '+(P.name||nome),content:b64(JSON.stringify(out)),branch:c.branch,sha})});
+    if(r.status===401)throw new Error('401: GitHub non riconosce la chiave (rifalla e incollala di nuovo)');
     if(!r.ok)throw await ghErr(r);
-    ghMsg('Salvato su GitHub: '+c.repo+'/'+path);}
+    ghMsg('Aggiorno l\'elenco dei progetti...');
+    const ep=(c.dir?c.dir+'/':'')+ELENCO; let esha, el={progetti:[]};
+    const ge=await fetch(ghUrl(c,ep)+'?ref='+encodeURIComponent(c.branch)+'&t='+Date.now(),{headers:ghHead(c),cache:'no-store'});
+    if(ge.ok){ const j=await ge.json(); esha=j.sha; try{ el=JSON.parse(new TextDecoder().decode(Uint8Array.from(atob(j.content.replace(/\n/g,'')),ch=>ch.charCodeAt(0)))); }catch(e){} }
+    el.progetti=(el.progetti||[]).filter(q=>q.file!==nome); el.progetti.unshift({file:nome,nome:P.name||nome,foto:P.shots.length,salvato:out.salvato,byte:JSON.stringify(out).length});
+    const pe=await fetch(ghUrl(c,ep),{method:'PUT',headers:Object.assign(ghHead(c),{'Content-Type':'application/json'}),body:JSON.stringify({message:'Coni ottici: elenco dei progetti',content:b64(JSON.stringify(el,null,1)),branch:c.branch,sha:esha})});
+    if(!pe.ok)throw await ghErr(pe);
+    try{history.replaceState(null,'',ghLink(path));}catch(e){}
+    ghMsg('Salvato su GitHub. Link da condividere (si apre da qualsiasi PC, senza chiave): '+ghLink(path));}
   catch(err){ghMsg('Salvataggio non riuscito ('+err.message+'). Controlla repository, ramo e che la chiave abbia il permesso Contents: Read and write.');}};
 $('ghList').onclick=async()=>{const c=ghCfg();if(!c.repo){$('ghCfg').open=true;ghMsg('Scrivi il repository');return;}
   try{ghMsg('Cerco i progetti su GitHub...');
-    const r=await fetch(ghUrl(c,c.dir||'')+'?ref='+encodeURIComponent(c.branch)+'&t='+Date.now(),{headers:ghHead(c),cache:'no-store'});
-    if(!r.ok)throw await ghErr(r);
-    const fl=(await r.json()).filter(f=>f.type==='file'&&/\.json$/i.test(f.name));
+    const el=await ghElenco(c);
+    const fl=(el&&el.progetti||[]).map(q=>({name:q.file,path:(c.dir?c.dir+'/':'')+q.file,size:q.byte||0}));
     if(!fl.length){ghMsg('Nessun progetto nella cartella '+(c.dir||'principale'));return;}
     const sel_=$('ghFiles');sel_.innerHTML='<option value="">Scegli il progetto da aprire...</option>'+fl.map(f=>'<option value="'+f.path.replace(/"/g,'&quot;')+'">'+f.name+' ('+(f.size/1048576).toFixed(1)+' MB)</option>').join('');
     sel_.hidden=false;ghMsg(fl.length+' progetti trovati: scegli quello da aprire');}
-  catch(err){ghMsg('Non riesco a leggere la cartella ('+err.message+'). Per un repository privato serve la chiave.');}};
+  catch(err){ghMsg('Non riesco a leggere la cartella ('+err.message+')');}};
 $('ghFiles').onchange=async e=>{const path=e.target.value;if(!path)return;const c=ghCfg();
-  try{ghMsg('Scarico il progetto...');const r=await fetch(ghUrl(c,path)+'?ref='+encodeURIComponent(c.branch)+'&t='+Date.now(),{headers:ghHead(c,true),cache:'no-store'});
-    if(!r.ok)throw await ghErr(r);await apriProgetto(await r.json(),path.split('/').pop());ghMsg('Aperto da GitHub: '+path);}
+  try{ghMsg('Scarico il progetto...');const r=await ghGet(c,path);
+    if(!r.ok)throw await ghErr(r);await apriProgetto(await r.json(),path.split('/').pop());
+    try{history.replaceState(null,'',ghLink(path));}catch(e){} ghMsg('Aperto da GitHub: '+path+' · link da condividere: '+ghLink(path));}
   catch(err){ghMsg('Apertura non riuscita: '+err.message);}};
 $('ghForget').onclick=()=>{GH.del('tok');$('ghTok').value='';ghMsg('Chiave tolta da questo browser');};
+
+(async()=>{ const m=location.hash.match(/apri=([^&]+)/); if(!m) return; const path=decodeURIComponent(m[1]); const c=ghCfg();
+  try{ status('Apro il progetto da GitHub...'); const r=await ghGet(c,path); if(!r.ok) throw await ghErr(r);
+    await apriProgetto(await r.json(),path.split('/').pop()); ghMsg('Aperto da GitHub: '+path); }
+  catch(err){ ghMsg('Non riesco ad aprire il progetto del link ('+err.message+')'); } })();
 
 new ResizeObserver(()=>draw()).observe(stage);
 enable(false);draw();
