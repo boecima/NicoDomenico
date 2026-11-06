@@ -62,6 +62,9 @@ main{position:relative;overflow:hidden;min-width:0;background:var(--bg)}
 .leaflet-tooltip.plab{background:rgba(255,255,255,.85);border:0;box-shadow:none;padding:0 3px;font:600 11px var(--f-ui);color:#1d2420}
 .leaflet-tooltip.plab:before{display:none}
 .zoomhint{background:rgba(255,255,255,.9);border:1px solid var(--line);border-radius:6px;padding:3px 8px;font:12px var(--f-ui);color:var(--muted)}
+.rg{display:grid;grid-template-columns:1fr 44px;gap:8px;align-items:center}
+.rg output{font:12.5px var(--f-num);text-align:right;color:var(--fg)}
+input[type=range]{width:100%;accent-color:var(--accent);margin:0}
 @media (max-width:760px){.app{grid-template-columns:1fr;grid-template-rows:auto 70vh;height:auto}html,body{height:auto}aside{border-right:0;border-bottom:1px solid var(--line);overflow:visible}main{height:70vh}}
 </style>
 </head>
@@ -137,8 +140,13 @@ main{position:relative;overflow:hidden;min-width:0;background:var(--bg)}
   </section>
 
   <section>
+    <h2>Vista e immagine</h2>
+    <div id="pannelloMappa" class="dati"></div>
+  </section>
+
+  <section>
     <h2>Mappa e fonti</h2>
-    <p class="hint">In alto a destra si sceglie tra Satellite e Mappa e si accende o spegne la mappa catastale dell'Agenzia delle Entrate, che compare solo ingrandendo molto (dal livello 16). Mappa catastale e dati delle particelle: Agenzia delle Entrate (CC BY 4.0). Posizione delle particelle per la ricerca: archivio aperto OnData (CC BY 4.0, github.com/ondata/dati_catastali). Contorni: copia per comune dei file dell'Agenzia pubblicata su Hugging Face (MatteoChiurchiu/catasto-gml); se un comune manca si chiedono al servizio WFS dell'Agenzia.</p>
+    <p class="hint">In alto a destra si sceglie lo sfondo (Satellite, Mappa, Solo strade e fiumi, Nessuno sfondo) e la mappa catastale: la "Mappa particelle" è disegnata dai contorni del comune scaricati con la ricerca (numeri delle particelle visibili ingrandendo), la "Mappa catastale ufficiale" è quella dell'Agenzia in diretta, più lenta e visibile solo da vicino. Dati catastali: Agenzia delle Entrate (CC BY 4.0). Posizione delle particelle per la ricerca: archivio aperto OnData (CC BY 4.0, github.com/ondata/dati_catastali). Contorni: copia per comune dei file dell'Agenzia pubblicata su Hugging Face (MatteoChiurchiu/catasto-gml); se un comune manca si chiedono al servizio WFS dell'Agenzia.</p>
   </section>
 </aside>
 <main>
@@ -414,7 +422,7 @@ async function run(){
     }
   }catch(e){if(e.name!=='AbortError'&&!(e instanceof Errore&&e.tipo==='fermata'))fatal=e}
   running=false;$('go').disabled=false;$('stop').disabled=true;
-  renderTable();redrawAll(true);
+  renderTable();redrawAll(true);aggiornaMappaParticelle();
   const c=countBy();
   status(rowsState.length?('Trovate '+(c.trovata+c.punto)+' su '+rowsState.length+(c.non?' · '+c.non+' non trovate':'')+(c.piu?' · '+c.piu+' con più risultati':'')):'');
   if(fatal)msg(testoErrore(fatal),'err');
@@ -463,17 +471,34 @@ function updateRow(r){const tr=$('tbody').querySelector('tr[data-i="'+r.i+'"]');
 /* =====================================================================
    MAPPA
    ===================================================================== */
-// Mappa catastale WMS: il servizio lavora in coordinate geografiche (EPSG:6706), quindi ogni
-// tassello si chiede con il riquadro in gradi (WMS 1.1.1: lon,lat). Da zoom 16 in su la
-// differenza con la proiezione della mappa è inferiore a un pixel. Lo stesso codice è
-// copiato nella pagina dei poligoni.
-const CATASTO_JS=`function catastoLayer(){
-  // Il servizio è lento e a volte non risponde: tasselli grandi (512 px, quattro volte meno
-  // richieste), al massimo 4 richieste insieme e fino a 3 nuovi tentativi per tassello.
+// Codice della mappa condiviso con la pagina dei poligoni: sfondi, mappa catastale ufficiale (WMS),
+// Mappa particelle disegnata dai contorni del comune, trasparenze e immagine PNG.
+const MAPPA_JS=String.raw`var MP=(function(){
+var M={};
+var ESRI='https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}';
+var OSM='https://tile.openstreetmap.org/{z}/{x}/{y}.png';
+var CARTO='https://{s}.basemaps.cartocdn.com/rastertiles/voyager_nolabels/{z}/{x}/{y}{r}.png';
+M.TESTO_CATASTO='Particelle: Agenzia delle Entrate (CC BY 4.0)';
+M.NOME_VETT='Mappa particelle';
+M.NOME_WMS='Mappa catastale ufficiale (Agenzia, in diretta)';
+
+/* ---------- sfondi ---------- */
+M.basi=function(){
+  function t(url,o){return L.tileLayer(url,L.extend({maxZoom:21},o))}
+  return {
+    'Satellite':{layer:t(ESRI,{maxNativeZoom:19,attribution:'&copy; Esri, Maxar, Earthstar Geographics'}),url:ESRI,maxNative:19,testo:'Sfondo: Esri, Maxar, Earthstar Geographics',scuro:true},
+    'Mappa (OpenStreetMap)':{layer:t(OSM,{maxNativeZoom:19,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'}),url:OSM,maxNative:19,testo:'Sfondo: OpenStreetMap'},
+    'Solo strade e fiumi':{layer:t(CARTO,{subdomains:'abcd',maxNativeZoom:20,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> &copy; <a href="https://carto.com/attributions">CARTO</a>'}),url:CARTO,sub:'abcd',maxNative:20,testo:'Sfondo: OpenStreetMap, CARTO'},
+    'Nessuno sfondo':{layer:L.layerGroup(),url:null,testo:''}
+  };
+};
+
+/* ---------- mappa catastale ufficiale (WMS dell'Agenzia, solo a schermo) ----------
+   Il servizio lavora in gradi (EPSG:6706): ogni tassello si chiede con il riquadro in gradi
+   (WMS 1.1.1: lon,lat). Tasselli da 512 px, al massimo 4 richieste insieme, 3 nuovi tentativi. */
+M.catastoWms=function(){
   var coda=[],attivi=0,MAX=4;
-  function avanti(){
-    while(attivi<MAX&&coda.length){var t=coda.shift();if(t.img._via)continue;attivi++;carica(t)}
-  }
+  function avanti(){while(attivi<MAX&&coda.length){var t=coda.shift();if(t.img._via)continue;attivi++;carica(t)}}
   function carica(t){
     var img=t.img;img._attivo=true;
     var fine=function(ok){img.onload=img.onerror=null;img._attivo=false;attivi--;
@@ -486,8 +511,7 @@ const CATASTO_JS=`function catastoLayer(){
   }
   var Catasto=L.TileLayer.WMS.extend({
     onAdd:function(m){L.TileLayer.WMS.prototype.onAdd.call(this,m);this.wmsParams.srs='EPSG:6706'},
-    initialize:function(u,o){L.TileLayer.WMS.prototype.initialize.call(this,u,o);
-      this.on('tileunload',function(e){e.tile._via=true})},
+    initialize:function(u,o){L.TileLayer.WMS.prototype.initialize.call(this,u,o);this.on('tileunload',function(e){e.tile._via=true})},
     _abortLoading:function(){
       for(var k in this._tiles){var t=this._tiles[k];
         if(t.coords.z!==this._tileZoom){t.el._via=true;if(t.el._attivo){t.el._attivo=false;attivi--}}}
@@ -499,27 +523,244 @@ const CATASTO_JS=`function catastoLayer(){
       return this._url+L.Util.getParamString(p,this._url,true)}});
   return new Catasto('https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php',{
     layers:'CP.CadastralParcel,fabbricati,vestizioni',styles:'',format:'image/png',transparent:true,version:'1.1.1',
-    tileSize:512,keepBuffer:4,updateWhenZooming:false,
+    tileSize:512,keepBuffer:4,updateWhenZooming:false,zIndex:5,
     minZoom:16,maxZoom:21,maxNativeZoom:20,opacity:.9,attribution:'Cartografia catastale &copy; Agenzia delle Entrate'});
+};
+
+/* ---------- particelle del comune come disegno vettoriale ----------
+   dati: [{r:'285', g:[poligono, ...]}] con poligono = [anello, ...] e anello = [[lon,lat], ...] */
+M.prepara=function(dati){
+  var out=[];
+  for(var i=0;i<dati.length;i++){
+    var d=dati[i],w=180,s=90,e=-180,n=-90,best=null,bestA=-1;
+    for(var j=0;j<d.g.length;j++){var ring=d.g[j][0];if(!ring)continue;var a=0;
+      for(var k=0;k<ring.length;k++){var p=ring[k];if(p[0]<w)w=p[0];if(p[0]>e)e=p[0];if(p[1]<s)s=p[1];if(p[1]>n)n=p[1];
+        if(k)a+=ring[k-1][0]*p[1]-p[0]*ring[k-1][1]}
+      a=Math.abs(a);if(a>bestA){bestA=a;best=ring}}
+    if(!best)continue;
+    out.push({r:String(d.r),g:d.g,b:[w,s,e,n],c:baricentro(best)||[(w+e)/2,(s+n)/2]});
+  }
+  return out;
+};
+function baricentro(r){var a=0,x=0,y=0,x0=r[0][0],y0=r[0][1];
+  for(var i=0;i<r.length-1;i++){var p=r[i],q=r[i+1],px=p[0]-x0,py=p[1]-y0,qx=q[0]-x0,qy=q[1]-y0,f=px*qy-qx*py;a+=f;x+=(px+qx)*f;y+=(py+qy)*f}
+  if(Math.abs(a)<1e-14)return null;return [x0+x/(3*a),y0+y/(3*a)]}
+M.stile=function(scuro){return scuro?{linea:'#ffe25c',testo:'#fff3b0',alone:'rgba(0,0,0,.75)'}:{linea:'#2b2b2b',testo:'#1d1d1d',alone:'rgba(255,255,255,.9)'}};
+// proj(lon,lat) -> [x,y] in pixel della tela; bb = {w,s,e,n} della zona disegnata; z = zoom effettivo
+M.disegnaCatasto=function(ctx,dati,proj,bb,z,o){
+  var sc=o.scala||1,st=M.stile(o.scuro),vis=[];
+  for(var i=0;i<dati.length;i++){var d=dati[i];if(d.b[2]<bb.w||d.b[0]>bb.e||d.b[3]<bb.s||d.b[1]>bb.n)continue;vis.push(d)}
+  ctx.save();ctx.lineJoin='round';ctx.strokeStyle=st.linea;ctx.lineWidth=(z>=18?1.3:1)*sc;ctx.beginPath();
+  for(i=0;i<vis.length;i++)for(var j=0;j<vis[i].g.length;j++)for(var k=0;k<vis[i].g[j].length;k++){var r=vis[i].g[j][k];
+    for(var h=0;h<r.length;h++){var p=proj(r[h][0],r[h][1]);if(h)ctx.lineTo(p[0],p[1]);else ctx.moveTo(p[0],p[1])}}
+  ctx.stroke();
+  if(z>=17){
+    var fs=(z>=19?13:z>=18?12:10.5)*sc;ctx.font='600 '+fs+'px "Segoe UI",system-ui,Arial,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+    ctx.lineWidth=3*sc;ctx.strokeStyle=st.alone;ctx.fillStyle=st.testo;
+    for(i=0;i<vis.length;i++){var d2=vis[i],a=proj(d2.b[0],d2.b[3]),b=proj(d2.b[2],d2.b[1]),larg=Math.min(b[0]-a[0],b[1]-a[1]);
+      if(larg<fs*1.6)continue;var c=proj(d2.c[0],d2.c[1]);ctx.strokeText(d2.r,c[0],c[1]);ctx.fillText(d2.r,c[0],c[1])}
+  }
+  ctx.restore();
+};
+M.Particelle=L.Layer.extend({
+  options:{opacity:.9,minZoom:15},
+  initialize:function(o){L.setOptions(this,o);this._dati=[];this._scuro=false},
+  setDati:function(d){this._dati=M.prepara(d||[]);this._ridisegna();return this},
+  getDati:function(){return this._dati},
+  setOpacity:function(v){this.options.opacity=v;if(this._cv)this._cv.style.opacity=v;return this},
+  setScuro:function(v){this._scuro=!!v;this._ridisegna()},
+  onAdd:function(map){
+    if(!map.getPane('particelle')){var p=map.createPane('particelle');p.style.zIndex=350;p.style.pointerEvents='none'}
+    this._cv=L.DomUtil.create('canvas','');this._cv.style.position='absolute';this._cv.style.opacity=this.options.opacity;
+    map.getPane('particelle').appendChild(this._cv);
+    map.on('moveend zoomend resize viewreset',this._ridisegna,this);map.on('zoomstart',this._nascondi,this);this._ridisegna()},
+  onRemove:function(map){L.DomUtil.remove(this._cv);this._cv=null;map.off('moveend zoomend resize viewreset',this._ridisegna,this);map.off('zoomstart',this._nascondi,this)},
+  _nascondi:function(){if(this._cv)this._cv.style.visibility='hidden'},
+  _ridisegna:function(){
+    var m=this._map,cv=this._cv;if(!m||!cv)return;
+    var s=m.getSize(),dpr=window.devicePixelRatio||1;
+    cv.width=Math.round(s.x*dpr);cv.height=Math.round(s.y*dpr);cv.style.width=s.x+'px';cv.style.height=s.y+'px';
+    L.DomUtil.setPosition(cv,m.containerPointToLayerPoint([0,0]));cv.style.visibility='visible';
+    var ctx=cv.getContext('2d');ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,s.x,s.y);
+    if(m.getZoom()<this.options.minZoom||!this._dati.length)return;
+    var bd=m.getBounds();
+    M.disegnaCatasto(ctx,this._dati,function(lon,lat){var p=m.latLngToContainerPoint([lat,lon]);return [p.x,p.y]},
+      {w:bd.getWest(),s:bd.getSouth(),e:bd.getEast(),n:bd.getNorth()},m.getZoom(),{scala:1,scuro:this._scuro});
+  }
+});
+
+/* ---------- particelle cercate (per l'immagine) ----------
+   items: [{geometry (GeoJSON) oppure lat/lng, colore '#hex', etichetta, tratteggio}] */
+M.disegnaCercate=function(ctx,items,proj,o){
+  var sc=o.scala||1;ctx.save();ctx.lineJoin='round';
+  items.forEach(function(it){
+    ctx.strokeStyle=it.colore;ctx.fillStyle=it.colore;ctx.lineWidth=3*sc;ctx.setLineDash(it.tratteggio?[6*sc,5*sc]:[]);
+    if(it.geometry){var polys=it.geometry.type==='Polygon'?[it.geometry.coordinates]:it.geometry.coordinates;
+      ctx.beginPath();polys.forEach(function(pl){pl.forEach(function(r){r.forEach(function(q,h){var p=proj(q[0],q[1]);if(h)ctx.lineTo(p[0],p[1]);else ctx.moveTo(p[0],p[1])});ctx.closePath()})});
+      ctx.globalAlpha=o.riempimento;ctx.fill('evenodd');ctx.globalAlpha=1;ctx.stroke()}
+    else{var p=proj(it.lng,it.lat);ctx.beginPath();ctx.arc(p[0],p[1],7*sc,0,Math.PI*2);ctx.globalAlpha=Math.max(o.riempimento,.35);ctx.fill();ctx.globalAlpha=1;ctx.stroke()}
+  });
+  ctx.setLineDash([]);var fs=11*sc;ctx.font='600 '+fs+'px "Segoe UI",system-ui,Arial,sans-serif';ctx.textAlign='center';ctx.textBaseline='middle';
+  items.forEach(function(it){var c;
+    if(it.geometry){var w=180,s=90,e=-180,n=-90,polys=it.geometry.type==='Polygon'?[it.geometry.coordinates]:it.geometry.coordinates;
+      polys.forEach(function(pl){pl[0].forEach(function(q){if(q[0]<w)w=q[0];if(q[0]>e)e=q[0];if(q[1]<s)s=q[1];if(q[1]>n)n=q[1]})});c=proj((w+e)/2,(s+n)/2)}
+    else{c=proj(it.lng,it.lat);c=[c[0]+8*sc+ctx.measureText(it.etichetta).width/2,c[1]]}
+    var tw=ctx.measureText(it.etichetta).width+6*sc;ctx.fillStyle='rgba(255,255,255,.85)';ctx.fillRect(c[0]-tw/2,c[1]-fs*.7,tw,fs*1.4);
+    ctx.fillStyle='#1d2420';ctx.fillText(it.etichetta,c[0],c[1])});
+  ctx.restore();
+};
+
+/* ---------- montaggio di mappa, livelli e pannello ---------- */
+M.monta=function(map,cfg){
+  var st={map:map,cfg:cfg,basi:M.basi(),base:'Satellite',vett:new M.Particelle(),wms:M.catastoWms(),opacita:.9,riempimento:cfg.riempimento!=null?cfg.riempimento:.12};
+  var basi={};for(var k in st.basi)basi[k]=st.basi[k].layer;
+  var over={};over[M.NOME_VETT]=st.vett;over[M.NOME_WMS]=st.wms;
+  basi.Satellite.addTo(map);st.vett.addTo(map);st.vett.setScuro(true);
+  L.control.layers(basi,over,{collapsed:!!cfg.mobile}).addTo(map);
+  map.on('baselayerchange',function(e){st.base=e.name;map.getContainer().style.background=e.name==='Nessuno sfondo'?'#fff':'';st.vett.setScuro(!!st.basi[e.name].scuro)});
+  var h=L.control({position:'topleft'});
+  h.onAdd=function(){var d=L.DomUtil.create('div','zoomhint');d.textContent='Ingrandisci per vedere le particelle';return d};
+  function upd(){var z=map.getZoom(),show=(map.hasLayer(st.vett)&&st.vett.getDati().length&&z<15)||(map.hasLayer(st.wms)&&z<16);
+    if(show&&!h._map)h.addTo(map);if(!show&&h._map)h.remove()}
+  map.on('zoomend overlayadd overlayremove',upd);st.aggiornaAvviso=upd;upd();
+  if(cfg.pannello)M.pannello(cfg.pannello,st);
+  return st;
+};
+function campo(etichetta,input,uscita){var l=document.createElement('label');l.className='f';l.appendChild(document.createTextNode(etichetta));
+  if(uscita){var r=document.createElement('span');r.className='rg';r.appendChild(input);r.appendChild(uscita);l.appendChild(r)}else l.appendChild(input);return l}
+M.pannello=function(el,st){
+  function slider(val){var i=document.createElement('input');i.type='range';i.min=0;i.max=100;i.step=5;i.value=Math.round(val*100);return i}
+  var o1=document.createElement('output'),o2=document.createElement('output');
+  var s1=slider(st.opacita),s2=slider(st.riempimento);
+  function scrivi(){o1.textContent=s1.value+'%';o2.textContent=s2.value+'%'}scrivi();
+  s1.oninput=function(){st.opacita=s1.value/100;st.vett.setOpacity(st.opacita);st.wms.setOpacity(st.opacita);scrivi()};
+  s2.oninput=function(){st.riempimento=s2.value/100;var gl=st.cfg.cercateLayer&&st.cfg.cercateLayer();
+    (function giu(g){if(!g)return;g.eachLayer(function(l){if(l.eachLayer)giu(l);else if(l.setStyle)l.setStyle({fillOpacity:l instanceof L.CircleMarker?Math.max(st.riempimento,.35):st.riempimento})})})(gl);scrivi()};
+  var nome=document.createElement('input');nome.type='text';nome.className='txt';nome.autocomplete='off';nome.spellcheck=false;
+  nome.value=st.cfg.nomeFile?st.cfg.nomeFile():'mappa_particelle';nome.oninput=function(){nome._mio=true};
+  st.aggiornaNome=function(){if(!nome._mio&&st.cfg.nomeFile)nome.value=st.cfg.nomeFile()};
+  var b1=document.createElement('button'),b2=document.createElement('button'),p=document.createElement('p');
+  b1.type=b2.type='button';b1.className='primary';b1.textContent='Salva immagine';b2.textContent='Salva immagine alta risoluzione';p.className='hint';
+  var occupato=false;
+  function via(f){if(occupato)return;occupato=true;b1.disabled=b2.disabled=true;
+    M.esporta(st,f,nome.value,function(t){p.textContent=t}).then(function(r){p.textContent=r},function(e){p.textContent=e&&e.message?e.message:'Immagine non salvata.'})
+      .then(function(){occupato=false;b1.disabled=b2.disabled=false})}
+  b1.onclick=function(){via(2)};b2.onclick=function(){via(4)};
+  var bt=document.createElement('div');bt.className='btns';bt.appendChild(b1);bt.appendChild(b2);
+  el.appendChild(campo('Intensità della mappa catastale',s1,o1));
+  el.appendChild(campo('Riempimento delle particelle cercate',s2,o2));
+  el.appendChild(campo('Nome del file',nome));el.appendChild(bt);el.appendChild(p);
+  var nota=document.createElement('p');nota.className='hint';
+  nota.textContent='"Salva immagine" crea un PNG della vista attuale a risoluzione doppia, "alta risoluzione" quadrupla (al massimo 8000 pixel per lato). La mappa catastale ufficiale dell\'Agenzia non si può copiare nell\'immagine: al suo posto si usa la Mappa particelle.';
+  el.appendChild(nota);
+};
+
+/* ---------- immagine PNG della vista ---------- */
+function caricaTassello(url,tent){
+  return new Promise(function(ok){var n=0;
+    (function prova(){var img=new Image();img.crossOrigin='anonymous';
+      img.onload=function(){ok(img)};
+      img.onerror=function(){if(n<tent){n++;setTimeout(prova,500*n)}else ok(null)};
+      img.src=url+(n?(url.indexOf('?')<0?'?':'&')+'_tentativo='+n:'')})()})}
+function arrotonda(m){var e=Math.pow(10,Math.floor(Math.log(m)/Math.LN10)),f=m/e;return (f>=5?5:f>=2?2:1)*e}
+M.esporta=function(st,fattore,nome,progresso){
+  var map=st.map,size=map.getSize(),coarse=window.matchMedia&&matchMedia('(pointer:coarse)').matches;
+  var maxArea=coarse?16e6:48e6,f=Math.min(fattore,8000/size.x,8000/size.y,Math.sqrt(maxArea/(size.x*size.y)));
+  var W=Math.round(size.x*f),H=Math.round(size.y*f),z=map.getZoom()+Math.log(f)/Math.LN2;
+  var base=st.basi[st.base]||{},zt=Math.max(0,Math.min(Math.round(z),base.maxNative||19)),s=Math.pow(2,z-zt);
+  var cpx=map.project(map.getCenter(),zt);
+  function proj(lon,lat){var p=map.project([lat,lon],zt);return [(p.x-cpx.x)*s+W/2,(p.y-cpx.y)*s+H/2]}
+  var nw=map.unproject([cpx.x-W/2/s,cpx.y-H/2/s],zt),se=map.unproject([cpx.x+W/2/s,cpx.y+H/2/s],zt);
+  var bb={w:nw.lng,n:nw.lat,e:se.lng,s:se.lat};
+  var cv=document.createElement('canvas');cv.width=W;cv.height=H;var ctx=cv.getContext('2d');
+  if(!ctx)return Promise.reject(new Error('Il browser non riesce a creare l\'immagine.'));
+  ctx.fillStyle='#fff';ctx.fillRect(0,0,W,H);
+  var note=[],mancati=0;
+  var lavoro=Promise.resolve();
+  if(base.url){
+    var x0=Math.floor((cpx.x-W/2/s)/256),x1=Math.floor((cpx.x+W/2/s)/256),y0=Math.floor((cpx.y-H/2/s)/256),y1=Math.floor((cpx.y+H/2/s)/256);
+    var lista=[];for(var x=x0;x<=x1;x++)for(var y=y0;y<=y1;y++)lista.push([x,y]);
+    var fatti=0,i=0;
+    lavoro=new Promise(function(fine){
+      if(!lista.length)return fine();
+      function prossimo(){
+        if(i>=lista.length)return;var t=lista[i++];
+        var sub=base.sub?base.sub[Math.abs(t[0]+t[1])%base.sub.length]:'';
+        var url=L.Util.template(base.url,{s:sub,x:t[0],y:t[1],z:zt,r:''});
+        caricaTassello(url,2).then(function(img){
+          if(img){try{ctx.drawImage(img,Math.floor((t[0]*256-cpx.x)*s+W/2),Math.floor((t[1]*256-cpx.y)*s+H/2),Math.ceil(256*s)+1,Math.ceil(256*s)+1)}catch(e){mancati++}}
+          else mancati++;
+          fatti++;progresso('Scarico lo sfondo: '+fatti+' di '+lista.length+' tasselli...');
+          if(fatti===lista.length)fine();else prossimo()});
+      }
+      for(var k=0;k<6;k++)prossimo();
+    });
+  }
+  return lavoro.then(function(){
+    progresso('Disegno le particelle...');
+    var vettOn=st.map.hasLayer(st.vett),wmsOn=st.map.hasLayer(st.wms),dati=st.vett.getDati();
+    if(wmsOn)note.push('la mappa catastale ufficiale dell\'Agenzia non si può copiare nell\'immagine: al suo posto è stata usata la Mappa particelle');
+    if((vettOn||wmsOn)&&dati.length){ctx.save();ctx.globalAlpha=st.opacita;M.disegnaCatasto(ctx,dati,proj,bb,z,{scala:f,scuro:!!base.scuro});ctx.restore()}
+    else if(vettOn||wmsOn)note.push('la Mappa particelle non è disponibile per questa zona');
+    var items=st.cfg.cercate?st.cfg.cercate():[];
+    M.disegnaCercate(ctx,items,proj,{scala:f,riempimento:st.riempimento});
+    decorazioni(ctx,W,H,f,z,map.getCenter().lat,st,base);
+    if(mancati)note.push(mancati+' tasselli dello sfondo non sono arrivati e sono rimasti bianchi');
+    progresso('Preparo il file PNG...');
+    return new Promise(function(ok,ko){
+      cv.toBlob(function(blob){
+        if(!blob)return ko(new Error('Immagine troppo grande per questo dispositivo: prova "Salva immagine".'));
+        var n=(String(nome||'').trim()||'mappa_particelle').normalize('NFD').replace(/[̀-ͯ]/g,'').replace(/[^A-Za-z0-9_.\- ]+/g,'').replace(/\s+/g,'_').replace(/\.png$/i,'').slice(0,80)||'mappa_particelle';
+        var u=URL.createObjectURL(blob),a=document.createElement('a');a.href=u;a.download=n+'.png';document.body.appendChild(a);a.click();a.remove();
+        setTimeout(function(){URL.revokeObjectURL(u)},4000);
+        ok('Immagine salvata: '+n+'.png ('+W+' x '+H+' pixel).'+(note.length?' Nota: '+note.join('; ')+'.':''));
+      },'image/png');
+    });
+  });
+};
+function decorazioni(ctx,W,H,f,z,lat,st,base){
+  var sc=f,m=10*sc;ctx.save();ctx.font=(12*sc)+'px "Segoe UI",system-ui,Arial,sans-serif';ctx.textBaseline='middle';
+  // freccia del nord
+  var nx=W-m-14*sc,ny=m+22*sc;ctx.fillStyle='rgba(255,255,255,.85)';ctx.beginPath();ctx.arc(nx,ny,18*sc,0,Math.PI*2);ctx.fill();
+  ctx.fillStyle='#1d2420';ctx.beginPath();ctx.moveTo(nx,ny-14*sc);ctx.lineTo(nx+7*sc,ny+8*sc);ctx.lineTo(nx,ny+3*sc);ctx.lineTo(nx-7*sc,ny+8*sc);ctx.closePath();ctx.fill();
+  ctx.font='700 '+(10*sc)+'px "Segoe UI",system-ui,Arial,sans-serif';ctx.textAlign='center';ctx.fillText('N',nx,ny+13*sc);
+  // barra di scala
+  var mpp=40075016.686*Math.cos(lat*Math.PI/180)/(256*Math.pow(2,z)),metri=arrotonda(mpp*W/6),lung=metri/mpp;
+  var bx=m,by=H-m-28*sc;ctx.fillStyle='rgba(255,255,255,.85)';ctx.fillRect(bx-4*sc,by-16*sc,lung+8*sc+40*sc,30*sc);
+  ctx.fillStyle='#1d2420';ctx.fillRect(bx,by,lung,5*sc);ctx.fillStyle='#fff';ctx.fillRect(bx+lung/4,by+1*sc,lung/4,3*sc);ctx.fillRect(bx+3*lung/4,by+1*sc,lung/4,3*sc);
+  ctx.fillStyle='#1d2420';ctx.font=(11*sc)+'px "Segoe UI",system-ui,Arial,sans-serif';ctx.textAlign='left';
+  ctx.fillText('0',bx,by-8*sc);ctx.textAlign='right';ctx.fillText((metri>=1000?(metri/1000).toLocaleString('it-IT')+' km':metri+' m'),bx+lung+30*sc,by-8*sc);
+  // attribuzioni
+  var attr=[base.testo,M.TESTO_CATASTO].filter(Boolean).join(' · ');ctx.font=(10*sc)+'px "Segoe UI",system-ui,Arial,sans-serif';
+  var aw=ctx.measureText(attr).width+8*sc;ctx.fillStyle='rgba(255,255,255,.8)';ctx.fillRect(W-aw,H-15*sc,aw,15*sc);
+  ctx.fillStyle='#333';ctx.textAlign='right';ctx.fillText(attr,W-4*sc,H-7.5*sc);
+  // legenda
+  var lg=st.cfg.legenda?st.cfg.legenda():null;
+  if(lg&&(lg.voci.length||lg.righe.length)){
+    var righe=[];if(lg.titolo)righe.push({t:lg.titolo,tit:true});lg.voci.forEach(function(v){righe.push({t:v.nome,c:v.colore})});lg.righe.forEach(function(r){righe.push({t:r})});
+    ctx.font=(12.5*sc)+'px "Segoe UI",system-ui,Arial,sans-serif';var lw=0;righe.forEach(function(r){lw=Math.max(lw,ctx.measureText(r.t).width+(r.c?22*sc:0))});
+    var lh=19*sc,bw=lw+20*sc,bh=righe.length*lh+10*sc,lx=W-m-bw,ly=H-22*sc-bh;
+    ctx.fillStyle='rgba(255,255,255,.92)';ctx.strokeStyle='#d3d9d4';ctx.lineWidth=sc;ctx.fillRect(lx,ly,bw,bh);ctx.strokeRect(lx,ly,bw,bh);
+    ctx.textAlign='left';righe.forEach(function(r,i){var yy=ly+5*sc+lh*(i+.5),xx=lx+10*sc;
+      if(r.c){ctx.strokeStyle=r.c;ctx.lineWidth=2*sc;ctx.strokeRect(xx,yy-5*sc,14*sc,10*sc);xx+=22*sc}
+      ctx.fillStyle=r.tit?'#5f6b64':'#1d2420';ctx.font=(r.tit?'700 ':'')+(12.5*sc)+'px "Segoe UI",system-ui,Arial,sans-serif';ctx.fillText(r.t,xx,yy)});
+  }
+  ctx.restore();
 }
-function baseLayers(){return {
-  'Satellite':L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}',{maxNativeZoom:19,maxZoom:21,attribution:'&copy; Esri, Maxar, Earthstar Geographics'}),
-  'Mappa':L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png',{maxNativeZoom:19,maxZoom:21,attribution:'&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'})}}
-function zoomHint(map,catasto){var h=L.control({position:'topleft'});
-  h.onAdd=function(){var d=L.DomUtil.create('div','zoomhint');d.textContent='Ingrandisci per vedere la mappa catastale';return d};
-  function upd(){var show=map.getZoom()<16&&map.hasLayer(catasto);if(show&&!h._map)h.addTo(map);if(!show&&h._map)h.remove()}
-  map.on('zoomend overlayadd overlayremove',upd);upd()}`;
+return M;
+})();
+`;
+let MPST=null;
 let map=null,results=null,legend=null;
 const rowLayers=new Map();
 function initMap(){
   if(typeof L==='undefined'){status('La libreria della mappa non si è caricata (manca la connessione?). La ricerca e i file funzionano lo stesso.');return}
-  (0,eval)(CATASTO_JS);
+  (0,eval)(MAPPA_JS);
   map=L.map('map',{maxZoom:21}).setView([41.0,14.7],10);
-  const basi=baseLayers(),catasto=catastoLayer();
-  basi.Satellite.addTo(map);catasto.addTo(map);
-  L.control.layers(basi,{'Mappa catastale (Agenzia delle Entrate)':catasto},{collapsed:window.matchMedia('(max-width:760px)').matches}).addTo(map);
-  zoomHint(map,catasto);
-  results=L.featureGroup().addTo(map);
+  results=L.featureGroup();
+  MPST=MP.monta(map,{mobile:window.matchMedia('(max-width:760px)').matches,pannello:$('pannelloMappa'),
+    nomeFile:()=>baseName()+'_particelle',cercate:cercateItems,legenda:legendaExport,cercateLayer:()=>results});
+  results.addTo(map);
   legend=L.control({position:'bottomright'});legend.onAdd=()=>L.DomUtil.create('div','legend');
 }
 function clearMap(){if(!map)return;results.clearLayers();rowLayers.clear();if(legend._map)legend.remove()}
@@ -530,8 +771,8 @@ function drawRow(r){
   const color=COLORI[r.colore]||COLORI.Rosso,g=L.featureGroup();
   r.matches.forEach(m=>{
     let lay;
-    if(m.geometry)lay=L.geoJSON(m.geometry,{style:{color,weight:3,opacity:1,fillColor:color,fillOpacity:.12,dashArray:r.stato==='piu'?'6 5':null}});
-    else lay=L.circleMarker([m.lat,m.lng],{radius:7,color,weight:3,fillOpacity:.35});
+    if(m.geometry)lay=L.geoJSON(m.geometry,{style:{color,weight:3,opacity:1,fillColor:color,fillOpacity:MPST?MPST.riempimento:.12,dashArray:r.stato==='piu'?'6 5':null}});
+    else lay=L.circleMarker([m.lat,m.lng],{radius:7,color,weight:3,fillOpacity:Math.max(MPST?MPST.riempimento:0,.35)});
     lay.bindPopup(()=>{const d=el('div');d.append(el('b',{text:etichetta(r)}),el('br'),document.createTextNode(ricerca.comune+' · '+m.ref),el('br'),
       document.createTextNode(m.area!=null?'Superficie calcolata: '+fmtN(m.area,0)+' m²':'Contorno non disponibile: il punto è dentro la particella'));
       if(r.stato==='piu')d.append(el('br'),el('i',{text:'Più particelle con lo stesso numero (sezioni diverse): controllare.'}));return d});
@@ -553,6 +794,17 @@ function renderLegend(){
   legend.addTo(map);const d=legend.getContainer();d.textContent='';d.append(el('strong',{text:ricerca.comune||'Legenda'}));
   e.forEach(x=>{const s=el('span',{class:'sw'});s.style.borderColor=COLORI[x.colore];d.append(el('div',{},s,x.name))});
 }
+function cercateItems(){const out=[];
+  rowsState.forEach(r=>r.matches.forEach(m=>out.push({geometry:m.geometry||null,lat:m.lat,lng:m.lng,colore:COLORI[r.colore]||COLORI.Rosso,etichetta:etichetta(r),tratteggio:r.stato==='piu'})));return out}
+function totaleRighe(){let t=0,n=0;rowsState.forEach(r=>{if(r.matches.length===1&&r.matches[0].area!=null){t+=r.matches[0].area;n++}});
+  return n?['Totale calcolato: '+fmtN(t,0)+' m² ('+n+' particelle)']:[]}
+function legendaExport(){return {titolo:ricerca.comune?ricerca.comune+' ('+ricerca.codice+')':'',voci:legendEntries().map(x=>({nome:x.name,colore:COLORI[x.colore]})),righe:totaleRighe()}}
+// Particelle del comune per la Mappa particelle: dall'archivio del comune, altrimenti quelle arrivate dal WFS
+function datiParticelle(){
+  const src=archivioComuni.get(ricerca.codice)||contorni;const out=[];
+  for(const [ref,g] of src){if(!g||!ref.startsWith(ricerca.codice))continue;out.push({r:ref.split('.').pop(),g:g.type==='Polygon'?[g.coordinates]:g.coordinates})}
+  return out}
+function aggiornaMappaParticelle(){if(!MPST)return;MPST.vett.setDati(datiParticelle());MPST.aggiornaNome();MPST.aggiornaAvviso()}
 function zoomRow(r){
   if(!map)return;const g=rowLayers.get(r.i);if(!g)return;
   const b=g.getBounds();if(b.isValid())map.fitBounds(b,{padding:[40,40],maxZoom:19});
@@ -613,8 +865,20 @@ function buildKml(){
   return '<?xml version="1.0" encoding="UTF-8"?>\n<kml xmlns="http://www.opengis.net/kml/2.2"><Document><name>'+xml(baseName())+'</name>\n'+styles+'\n'+pm+'\n</Document></kml>\n';
 }
 const geojson=()=>({type:'FeatureCollection',features:features()});
+// Particelle del comune attorno a quelle trovate (circa 400 m), da inserire nella pagina dei poligoni
+function particelleVicine(){
+  const fs=features();if(!fs.length)return [];
+  let w=180,so=90,e=-180,n=-90;
+  const add=(x,y)=>{if(x<w)w=x;if(x>e)e=x;if(y<so)so=y;if(y>n)n=y};
+  fs.forEach(f=>{const g=f.geometry;if(g.type==='Point')add(...g.coordinates);else(g.type==='Polygon'?[g.coordinates]:g.coordinates).forEach(pl=>pl[0].forEach(q=>add(q[0],q[1])))});
+  const M=0.005;w-=M;e+=M;so-=M*0.75;n+=M*0.75;
+  const r6=v=>Math.round(v*1e6)/1e6;
+  return datiParticelle().filter(d=>d.g.some(pl=>pl[0].some(q=>q[0]>=w&&q[0]<=e&&q[1]>=so&&q[1]<=n)))
+    .slice(0,6000).map(d=>({r:d.r,g:d.g.map(pl=>pl.map(r=>r.map(q=>[r6(q[0]),r6(q[1])])))}));
+}
 function buildPage(){
-  const dati={titolo:ricerca.comune+' - particelle',comune:ricerca.comune,codice:ricerca.codice,legenda:legendEntries().map(x=>({nome:x.name,colore:COLORI[x.colore]})),geojson:geojson()};
+  const dati={titolo:ricerca.comune+' - particelle',comune:ricerca.comune,codice:ricerca.codice,nome:baseName()+'_particelle',
+    legenda:legendaExport(),geojson:geojson(),particelle:particelleVicine(),riempimento:MPST?MPST.riempimento:.12};
   const json=JSON.stringify(dati).replace(/</g,'\\u003c');
   return `<!doctype html>
 <html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
@@ -624,8 +888,19 @@ function buildPage(){
 #map{position:absolute;inset:0}
 .box{background:#fff;border:1px solid #d3d9d4;border-radius:6px;padding:6px 10px;font-size:12.5px;max-width:240px;max-height:45vh;overflow:auto}
 .box strong{display:block;font-size:11px;text-transform:uppercase;letter-spacing:.06em;color:#5f6b64;margin-bottom:3px}
-.box div{display:flex;align-items:center;gap:5px;line-height:1.6}
+.box div.v{display:flex;align-items:center;gap:5px;line-height:1.6}
 .sw{display:inline-block;width:14px;height:10px;border:2px solid;border-radius:2px}
+.strum{width:250px;max-width:calc(100vw - 70px);max-height:none}
+.strum summary{cursor:pointer;font-weight:600;font-size:13px}
+.strum .in{display:flex;flex-direction:column;gap:6px;margin-top:6px}
+.f{font-size:12px;color:#5f6b64;display:flex;flex-direction:column;gap:2px}
+.rg{display:grid;grid-template-columns:1fr 44px;gap:8px;align-items:center}.rg output{font-size:12px;text-align:right;color:#1d2420}
+input[type=range]{width:100%;accent-color:#2f5d50;margin:0}
+.txt{width:100%;box-sizing:border-box;font:13px "Segoe UI",system-ui,Arial,sans-serif;background:#f6f8f6;border:1px solid #d3d9d4;border-radius:6px;padding:5px 6px}
+.btns{display:flex;flex-wrap:wrap;gap:6px}
+button{font:inherit;font-size:13px;padding:6px 10px;border-radius:6px;border:1px solid #d3d9d4;background:#f6f8f6;color:#1d2420;cursor:pointer}
+button.primary{background:#2f5d50;color:#fff;border-color:#2f5d50}button:disabled{opacity:.5}
+.hint{font-size:12px;color:#5f6b64;margin:0}
 .leaflet-tooltip.plab{background:rgba(255,255,255,.85);border:0;box-shadow:none;padding:0 3px;font:600 11px "Segoe UI",system-ui,Arial,sans-serif;color:#1d2420}
 .leaflet-tooltip.plab:before{display:none}
 .zoomhint{background:rgba(255,255,255,.9);border:1px solid #d3d9d4;border-radius:6px;padding:3px 8px;font-size:12px;color:#5f6b64}</style>
@@ -633,17 +908,23 @@ function buildPage(){
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js" crossorigin=""><\/script>
 <script>
 var DATI=${json};
-${CATASTO_JS}
-var map=L.map('map',{maxZoom:21}),basi=baseLayers(),catasto=catastoLayer();
-basi.Satellite.addTo(map);catasto.addTo(map);
-L.control.layers(basi,{'Mappa catastale (Agenzia delle Entrate)':catasto},{collapsed:innerWidth<760}).addTo(map);
-zoomHint(map,catasto);
+${MAPPA_JS}
 function fmt(v){return v==null?'':v.toLocaleString('it-IT',{maximumFractionDigits:0})}
-var gruppo=L.featureGroup().addTo(map);
+var map=L.map('map',{maxZoom:21}),gruppo=L.featureGroup();
+var pann=L.control({position:'topleft'});
+pann.onAdd=function(){var d=L.DomUtil.create('details','box strum');d.open=innerWidth>=760;var s=document.createElement('summary');s.textContent='Strumenti';d.appendChild(s);
+  var i=document.createElement('div');i.className='in';i.id='strumenti';d.appendChild(i);L.DomEvent.disableClickPropagation(d);L.DomEvent.disableScrollPropagation(d);return d};
+pann.addTo(map);
+var items=DATI.geojson.features.map(function(f){var g=f.geometry,p=f.properties;
+  return {geometry:g.type==='Point'?null:g,lat:g.type==='Point'?g.coordinates[1]:null,lng:g.type==='Point'?g.coordinates[0]:null,colore:p.colore_hex||'#d62728',etichetta:p.etichetta,tratteggio:p.esito==='più risultati'}});
+var st=MP.monta(map,{mobile:innerWidth<760,pannello:document.getElementById('strumenti'),riempimento:DATI.riempimento,
+  nomeFile:function(){return DATI.nome},cercate:function(){return items},legenda:function(){return DATI.legenda},cercateLayer:function(){return gruppo}});
+st.vett.setDati(DATI.particelle);
+gruppo.addTo(map);
 DATI.geojson.features.forEach(function(f){
   var p=f.properties,c=p.colore_hex||'#d62728',lay;
-  if(f.geometry.type==='Point')lay=L.circleMarker([f.geometry.coordinates[1],f.geometry.coordinates[0]],{radius:7,color:c,weight:3,fillOpacity:.35});
-  else lay=L.geoJSON(f.geometry,{style:{color:c,weight:3,fillColor:c,fillOpacity:.12}});
+  if(f.geometry.type==='Point')lay=L.circleMarker([f.geometry.coordinates[1],f.geometry.coordinates[0]],{radius:7,color:c,weight:3,fillOpacity:Math.max(st.riempimento,.35)});
+  else lay=L.geoJSON(f.geometry,{style:{color:c,weight:3,fillColor:c,fillOpacity:st.riempimento,dashArray:p.esito==='più risultati'?'6 5':null}});
   var t=document.createElement('div');var b=document.createElement('b');b.textContent=p.etichetta;t.appendChild(b);
   t.appendChild(document.createElement('br'));t.appendChild(document.createTextNode(p.comune+' · '+p.riferimento));
   t.appendChild(document.createElement('br'));t.appendChild(document.createTextNode(p.superficie_calcolata_m2!=null?'Superficie calcolata: '+fmt(p.superficie_calcolata_m2)+' m²':'Contorno non disponibile'));
@@ -652,13 +933,13 @@ DATI.geojson.features.forEach(function(f){
   gruppo.addLayer(L.tooltip({permanent:true,direction:'center',className:'plab',interactive:false}).setLatLng(at).setContent(p.etichetta));
 });
 var leg=L.control({position:'bottomright'});
-leg.onAdd=function(){var d=L.DomUtil.create('div','box');var s=document.createElement('strong');s.textContent=DATI.comune+' ('+DATI.codice+')';d.appendChild(s);
-  var tot=0,n=0;DATI.geojson.features.forEach(function(f){if(f.properties.superficie_calcolata_m2!=null){tot+=f.properties.superficie_calcolata_m2;n++}});
-  DATI.legenda.forEach(function(x){var r=document.createElement('div'),w=document.createElement('span');w.className='sw';w.style.borderColor=x.colore;r.appendChild(w);r.appendChild(document.createTextNode(x.nome));d.appendChild(r)});
-  if(n){var r=document.createElement('div');r.textContent='Totale calcolato: '+fmt(tot)+' m² ('+n+' particelle)';d.appendChild(r)}
+leg.onAdd=function(){var d=L.DomUtil.create('div','box');var s=document.createElement('strong');s.textContent=DATI.legenda.titolo;d.appendChild(s);
+  DATI.legenda.voci.forEach(function(x){var r=document.createElement('div'),w=document.createElement('span');r.className='v';w.className='sw';w.style.borderColor=x.colore;r.appendChild(w);r.appendChild(document.createTextNode(x.nome));d.appendChild(r)});
+  DATI.legenda.righe.forEach(function(x){var r=document.createElement('div');r.textContent=x;d.appendChild(r)});
   return d};
 leg.addTo(map);
 var bb=gruppo.getBounds();if(bb.isValid())map.fitBounds(bb,{padding:[30,30],maxZoom:18});else map.setView([41.9,12.5],6);
+st.aggiornaAvviso();
 <\/script></body></html>`;
 }
 $('dlCsv').onclick=()=>download(buildCsv(),baseName()+'.csv','text/csv;charset=utf-8');
