@@ -138,7 +138,7 @@ main{position:relative;overflow:hidden;min-width:0;background:var(--bg)}
 
   <section>
     <h2>Mappa e fonti</h2>
-    <p class="hint">In alto a destra si sceglie tra Satellite e Mappa e si accende o spegne la mappa catastale dell'Agenzia delle Entrate, che compare solo ingrandendo molto (dal livello 16). Contorni e mappa catastale: Agenzia delle Entrate (CC BY 4.0). Posizione delle particelle per la ricerca: archivio aperto OnData, ricavato dagli stessi dati dell'Agenzia (CC BY 4.0, github.com/ondata/dati_catastali).</p>
+    <p class="hint">In alto a destra si sceglie tra Satellite e Mappa e si accende o spegne la mappa catastale dell'Agenzia delle Entrate, che compare solo ingrandendo molto (dal livello 16). Mappa catastale e dati delle particelle: Agenzia delle Entrate (CC BY 4.0). Posizione delle particelle per la ricerca: archivio aperto OnData (CC BY 4.0, github.com/ondata/dati_catastali). Contorni: copia per comune dei file dell'Agenzia pubblicata su Hugging Face (MatteoChiurchiu/catasto-gml); se un comune manca si chiedono al servizio WFS dell'Agenzia.</p>
   </section>
 </aside>
 <main>
@@ -237,11 +237,13 @@ function leggiGml(testo){
   const doc=new DOMParser().parseFromString(testo,'application/xml');
   if(doc.getElementsByTagName('parsererror').length||/ServiceException|ExceptionReport/.test(testo.slice(0,2000)))return null;
   const out=[];
-  const membri=doc.getElementsByTagNameNS(NS_WFS,'member');
+  // risposta WFS (wfs:member) oppure file GML scaricato (gml:featureMember o elementi CadastralParcel)
+  let membri=[...doc.getElementsByTagNameNS(NS_WFS,'member'),...doc.getElementsByTagNameNS(NS_GML,'featureMember')];
+  if(!membri.length)membri=[...doc.getElementsByTagName('*')].filter(e=>/^cadastralparcel$/i.test(e.localName)).map(e=>e.parentNode);
   for(const m of membri){
     const f=m.firstElementChild;if(!f)continue;
-    const val=nome=>{for(const c of f.children)if(c.localName===nome)return c.textContent.trim();return ''};
-    const ref=val('NATIONALCADASTRALREFERENCE')||val('INSPIREID_LOCALID').replace(/^IT\.AGE\.PLA\./,'');
+    const val=nome=>{nome=nome.toLowerCase();for(const c of f.getElementsByTagName('*'))if(c.localName.toLowerCase()===nome&&!c.firstElementChild)return c.textContent.trim();return ''};
+    const ref=(val('NATIONALCADASTRALREFERENCE')||val('INSPIREID_LOCALID')||val('localId')).replace(/^IT\.AGE\.PLA\./,'');
     const poligoni=[];
     for(const pg of m.getElementsByTagNameNS(NS_GML,'Polygon')){
       const anelli=[];
@@ -267,6 +269,37 @@ function leggiAnello(parte){
   if(a[0][1]<30&&a[0][0]>30)for(const p of a)p.reverse();
   const f=a[0],l=a[a.length-1];if(f[0]!==l[0]||f[1]!==l[1])a.push([f[0],f[1]]);
   return a;
+}
+/* ---------- Archivio dei contorni per comune (copia dei file GML dell'Agenzia) ----------
+   Dataset pubblico "MatteoChiurchiu/catasto-gml" su Hugging Face, usato dall'app misuracatasto:
+   index.json (regioni > province > comuni {b: codice, n: nome}) e un file per comune
+   <codice>_<nome>_ple.gml.gz. Si scarica una volta il file del comune e si scelgono le
+   particelle per riferimento catastale. Se il comune manca o il file non arriva si passa al WFS. */
+const ARCHIVIO_GML='https://huggingface.co/datasets/MatteoChiurchiu/catasto-gml/resolve/main/';
+let indiceGml=null;const archivioComuni=new Map();   // codice -> Map(rif -> geometria) oppure null
+async function testoGz(r){
+  const buf=new Uint8Array(await r.arrayBuffer());
+  if(buf[0]===0x1f&&buf[1]===0x8b){
+    if(typeof DecompressionStream==='undefined')throw new Error('gzip');
+    const st=new Blob([buf]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return await new Response(st).text();
+  }
+  return new TextDecoder('utf-8').decode(buf);   // già decompresso dal browser
+}
+async function contorniDalArchivio(codice,signal){
+  if(archivioComuni.has(codice))return archivioComuni.get(codice);
+  let mappa=null;
+  try{
+    if(!indiceGml)indiceGml=fetch(ARCHIVIO_GML+'index.json',{signal}).then(r=>{if(!r.ok)throw new Error(r.status);return r.json()}).catch(e=>{indiceGml=null;throw e});
+    const idx=await indiceGml;let com=null;
+    for(const r of idx.regioni||[])for(const pv of r.province||[])for(const c of pv.comuni||[])if(String(c.b).toUpperCase()===codice)com=c;
+    if(com){
+      const r=await fetch(ARCHIVIO_GML+encodeURIComponent(com.b+'_'+com.n+'_ple.gml.gz'),{signal});
+      if(r.ok){const membri=leggiGml(await testoGz(r));
+        if(membri&&membri.length){mappa=new Map();for(const m of membri)if(m.ref)mappa.set(m.ref,m.geometry)}}
+    }
+  }catch(e){if(e.name==='AbortError')throw e;mappa=null}
+  archivioComuni.set(codice,mappa);return mappa;
 }
 async function contorno(p,signal){
   if(contorni.has(p.ref))return contorni.get(p.ref);
@@ -369,6 +402,9 @@ async function run(){
     }
     renderTable();
     let n=0;const daCercare=rowsState.filter(r=>r.matches.length);
+    if(daCercare.length){status('Scarico i contorni delle particelle di '+nome+'...');
+      const arch=await contorniDalArchivio(codice,abortCtl.signal);
+      if(arch)for(const r of daCercare)for(const m of r.matches)if(arch.has(m.ref))contorni.set(m.ref,arch.get(m.ref));}
     for(const r of daCercare){
       if(!running)break;
       status('Contorni: '+(++n)+' di '+daCercare.length);
@@ -432,13 +468,38 @@ function updateRow(r){const tr=$('tbody').querySelector('tr[data-i="'+r.i+'"]');
 // differenza con la proiezione della mappa è inferiore a un pixel. Lo stesso codice è
 // copiato nella pagina dei poligoni.
 const CATASTO_JS=`function catastoLayer(){
+  // Il servizio è lento e a volte non risponde: tasselli grandi (512 px, quattro volte meno
+  // richieste), al massimo 4 richieste insieme e fino a 3 nuovi tentativi per tassello.
+  var coda=[],attivi=0,MAX=4;
+  function avanti(){
+    while(attivi<MAX&&coda.length){var t=coda.shift();if(t.img._via)continue;attivi++;carica(t)}
+  }
+  function carica(t){
+    var img=t.img;img._attivo=true;
+    var fine=function(ok){img.onload=img.onerror=null;img._attivo=false;attivi--;
+      if(ok||img._via){if(!img._via)t.done(null,img)}
+      else if(t.n<3){t.n++;setTimeout(function(){coda.push(t);avanti()},800*Math.pow(2,t.n-1))}
+      else t.done(new Error('tassello non disponibile'),img);
+      avanti()};
+    img.onload=function(){fine(true)};img.onerror=function(){fine(false)};
+    img.src=t.url+(t.n?'&_tentativo='+t.n:'');
+  }
   var Catasto=L.TileLayer.WMS.extend({
     onAdd:function(m){L.TileLayer.WMS.prototype.onAdd.call(this,m);this.wmsParams.srs='EPSG:6706'},
+    initialize:function(u,o){L.TileLayer.WMS.prototype.initialize.call(this,u,o);
+      this.on('tileunload',function(e){e.tile._via=true})},
+    _abortLoading:function(){
+      for(var k in this._tiles){var t=this._tiles[k];
+        if(t.coords.z!==this._tileZoom){t.el._via=true;if(t.el._attivo){t.el._attivo=false;attivi--}}}
+      L.TileLayer.WMS.prototype._abortLoading.call(this);avanti()},
+    createTile:function(c,done){var img=document.createElement('img');img.alt='';img.setAttribute('role','presentation');
+      coda.push({img:img,url:this.getTileUrl(c),done:done,n:0});setTimeout(avanti,0);return img},
     getTileUrl:function(c){var b=this._tileCoordsToNwSe(c),nw=b[0],se=b[1];
       var p=L.extend({},this.wmsParams,{BBOX:[nw.lng,se.lat,se.lng,nw.lat].join(',')});
       return this._url+L.Util.getParamString(p,this._url,true)}});
   return new Catasto('https://wms.cartografia.agenziaentrate.gov.it/inspire/wms/ows01.php',{
     layers:'CP.CadastralParcel,fabbricati,vestizioni',styles:'',format:'image/png',transparent:true,version:'1.1.1',
+    tileSize:512,keepBuffer:4,updateWhenZooming:false,
     minZoom:16,maxZoom:21,maxNativeZoom:20,opacity:.9,attribution:'Cartografia catastale &copy; Agenzia delle Entrate'});
 }
 function baseLayers(){return {
