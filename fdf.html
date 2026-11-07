@@ -22,7 +22,7 @@ body{margin:0;background:var(--notte);color:var(--luce);font-family:var(--font);
 canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 .fine{position:fixed;inset:0;display:grid;place-items:center;text-align:center;
   padding:max(24px,env(safe-area-inset-top)) max(20px,env(safe-area-inset-right)) max(24px,env(safe-area-inset-bottom)) max(20px,env(safe-area-inset-left));
-  opacity:0;transition:opacity 1.1s ease;pointer-events:none}
+  opacity:0;transition:opacity .2s linear;pointer-events:none}
 .fine.on{opacity:1;pointer-events:auto}
 .fine .blocco{display:grid;gap:18px;justify-items:center;max-width:720px}
 .sigla{font-stretch:125%;font-weight:200;font-size:clamp(56px,13vw,150px);letter-spacing:.06em;line-height:.9;margin:0}
@@ -43,6 +43,16 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
 </head>
 <body>
 <canvas id="cielo" aria-hidden="true"></canvas>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <!-- pixelatura: si campiona un punto per cella e lo si allarga a quadratino; la cella si rimpicciolisce fino a 1 px -->
+  <filter id="pixel" x="0" y="0" width="1" height="1" color-interpolation-filters="sRGB">
+    <feFlood id="pxF" x="8" y="8" width="2" height="2"/>
+    <feComposite id="pxC" width="18" height="18"/>
+    <feTile result="griglia"/>
+    <feComposite in="SourceGraphic" in2="griglia" operator="in"/>
+    <feMorphology id="pxM" operator="dilate" radius="9"/>
+  </filter>
+</svg>
 <section class="fine" id="fine" aria-live="polite">
   <div class="blocco">
     <p class="sotto">Pannarano (BN) · località Bosco Capitolo</p>
@@ -64,8 +74,19 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
   dim(); addEventListener('resize',()=>{ dim(); bersagli(); });
 
   const ridotto=matchMedia('(prefers-reduced-motion: reduce)').matches;
-  function mostraFine(){ fine.classList.add('on'); salta.hidden=true; }
-  if(ridotto){ mostraFine(); stelle(); return; }
+  // il blocco finale compare pixelato e si affina: cella da 18 px a 1 px in circa 1,3 s
+  const blocco=fine.querySelector('.blocco'), pxF=document.getElementById('pxF'), pxC=document.getElementById('pxC'), pxM=document.getElementById('pxM');
+  function cella(c){ c=Math.max(1,Math.round(c)); const h=Math.max(1,Math.floor(c/2)); pxF.setAttribute('x',h); pxF.setAttribute('y',h);
+    pxF.setAttribute('width',1); pxF.setAttribute('height',1); pxC.setAttribute('width',c); pxC.setAttribute('height',c); pxM.setAttribute('radius',c/2); }
+  function mostraFine(subito){
+    salta.hidden=true;
+    if(subito||ridotto){ blocco.style.filter=''; fine.classList.add('on'); return; }
+    cella(18); blocco.style.filter='url(#pixel)'; fine.classList.add('on');
+    const t0=performance.now(), D=1300;
+    (function passo(ora){ const u=Math.min(1,(ora-t0)/D), c=18*Math.pow(1-u,1.6)+1;
+      if(u<1&&c>1.4){ cella(c); requestAnimationFrame(passo); } else blocco.style.filter=''; })(t0);
+  }
+  if(ridotto){ mostraFine(true); stelle(); return; }
 
   // ---- punti delle lettere FDF: si campiona il testo disegnato su una tela nascosta ----
   const N=Math.round(Math.min(420,Math.max(220,W*H/4200)));
@@ -156,7 +177,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
   // si parte quando il carattere e' pronto (le lettere si campionano con Archivo), al massimo dopo 600 ms
   const via=()=>{ bersagli(); g.fillStyle='#0C1217'; g.fillRect(0,0,W,H); requestAnimationFrame(frame); };
   (document.fonts&&document.fonts.load ? Promise.race([document.fonts.load('300 190px Archivo'),new Promise(r=>setTimeout(r,600))]) : Promise.resolve()).then(via);
-  salta.onclick=()=>{ t0=-1e9; mostraFine(); };
+  salta.onclick=()=>{ t0=-1e9; finito=true; mostraFine(); };
 })();
 </script>
 </body>
