@@ -84,24 +84,24 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
   bersagli();
 
   // ---- droni ----
-  const D=Array.from({length:N},(_,k)=>({x:W*(0.08+0.84*Math.random()), y:H+20+Math.random()*H*0.25, ritardo:Math.random()*0.5, fase:Math.random()*6.28}));
+  const D=Array.from({length:N},(_,k)=>({x:W*(0.08+0.84*Math.random()), y:H+20+Math.random()*H*0.25, ritardo:Math.random()*0.7, fase:Math.random()*6.28}));
   const C=[W/2,H*0.44];
   const ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2, salita=t=>t<.5?8*t*t*t*t:1-Math.pow(-2*t+2,4)/2, cl=v=>Math.max(0,Math.min(1,v));
-  // tempi (secondi): salita lenta 0–1.95, lettere ferme fino a 2.55, raccolta 2.55–3.05, scoppio lungo 3.05–5.4
-  const T1=1.95,T2=2.55,T3=3.05,T4=5.4;
+  // tempi (secondi): salita lenta 0–2.7, lettere ferme fino a 3.6, raccolta 3.6–4.3, scoppio lungo 4.3–7.4
+  const T1=2.7,T2=3.6,T3=4.3,T4=7.4;
 
   // ---- scintille dello scoppio ----
   let S=[]; let scoppiato=false;
   function scoppio(){
     scoppiato=true; const raggi=Math.round(Math.min(140,60+N/3));
     for(let k=0;k<raggi;k++){
-      const a=k/raggi*Math.PI*2+Math.random()*0.04, v=(Math.min(W,H)*1.25)*(0.75+Math.random()*0.35);
+      const a=k/raggi*Math.PI*2+Math.random()*0.04, v=(Math.min(W,H)*0.95)*(0.75+Math.random()*0.35);
       const oro=k%3!==0;
-      S.push({x:C[0],y:C[1],vx:Math.cos(a)*v,vy:Math.sin(a)*v,c:oro?'242,182,90':'127,149,240',t:0,vita:2.0+Math.random()*0.5,traccia:[]});
+      S.push({x:C[0],y:C[1],vx:Math.cos(a)*v,vy:Math.sin(a)*v,c:oro?'242,182,90':'127,149,240',t:0,vita:2.7+Math.random()*0.6,traccia:[]});
     }
     // corona interna, piu' corta
     for(let k=0;k<36;k++){ const a=k/36*Math.PI*2, v=Math.min(W,H)*0.55;
-      S.push({x:C[0],y:C[1],vx:Math.cos(a)*v,vy:Math.sin(a)*v,c:'240,106,43',t:0,vita:1.2,traccia:[]}); }
+      S.push({x:C[0],y:C[1],vx:Math.cos(a)*v,vy:Math.sin(a)*v,c:'240,106,43',t:0,vita:1.7,traccia:[]}); }
   }
 
   let stelleArr=null;
@@ -135,12 +135,12 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
     if(t>=T3 && !scoppiato) scoppio();
     if(scoppiato){
       // lampo iniziale
-      const f=cl(1-(t-T3)/0.35); if(f>0){ const R=Math.min(W,H)*0.35, gl=g.createRadialGradient(C[0],C[1],0,C[0],C[1],R); gl.addColorStop(0,`rgba(255,240,215,${0.35*f})`); gl.addColorStop(1,'rgba(255,240,215,0)'); g.fillStyle=gl; g.beginPath(); g.arc(C[0],C[1],R,0,6.283); g.fill(); }
+      const f=cl(1-(t-T3)/0.5); if(f>0){ const R=Math.min(W,H)*0.35, gl=g.createRadialGradient(C[0],C[1],0,C[0],C[1],R); gl.addColorStop(0,`rgba(255,240,215,${0.35*f})`); gl.addColorStop(1,'rgba(255,240,215,0)'); g.fillStyle=gl; g.beginPath(); g.arc(C[0],C[1],R,0,6.283); g.fill(); }
       g.lineCap='round';
       for(const p of S){
         p.t+=dt; if(p.t>p.vita) continue;
-        const k=p.t/p.vita, att=Math.exp(-3.4*p.t);
-        p.x+=p.vx*att*dt; p.y+=p.vy*att*dt+ 18*p.t*dt;       // via velocissima, poi l'aria frena e le scintille scendono piano
+        const k=p.t/p.vita, att=Math.exp(-2.6*p.t);
+        p.x+=p.vx*att*dt; p.y+=p.vy*att*dt+ 12*p.t*dt;       // via velocissima, poi l'aria frena e le scintille scendono piano
         p.traccia.push([p.x,p.y]); if(p.traccia.length>9) p.traccia.shift();
         const al=Math.pow(1-k,1.6);
         g.strokeStyle=`rgba(${p.c},${al})`; g.lineWidth=1.4*(1-k)+0.3; g.beginPath();
@@ -148,7 +148,7 @@ canvas{position:fixed;inset:0;width:100%;height:100%;display:block}
         if(k>0.5 && Math.random()<0.3){ g.fillStyle=`rgba(255,236,200,${al})`; g.fillRect(p.x,p.y,1.2,1.2); } // scintillio finale
       }
     }
-    if(t>T4-0.9 && !finito){ finito=true; mostraFine(); }
+    if(t>T4-1.3 && !finito){ finito=true; mostraFine(); }
     if(t<T4+1.6) requestAnimationFrame(frame);
     else { g.fillStyle='rgba(12,18,23,1)'; g.fillRect(0,0,W,H); stelleFisse(); }
   }
