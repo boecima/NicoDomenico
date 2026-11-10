@@ -1,0 +1,93 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="robots" content="noindex, nofollow">
+<title>F.D.F. · Accesso riservato</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,100..900&display=swap" rel="stylesheet">
+<style>
+/* Pagina di accesso: cielo notturno come l'intro, ma ferma */
+:root{ --notte:#0C1217; --notte-2:#131C23; --luce:#EEF2F4; --luce-soft:#9FAEB8; --linea:#2A3640; --oro:#F2B65A; --errore:#F08A6A;
+  --font:'Archivo','Helvetica Neue',Arial,sans-serif; color-scheme:dark; }
+*{box-sizing:border-box}
+html,body{height:100%}
+body{margin:0;background:var(--notte);color:var(--luce);font-family:var(--font);-webkit-font-smoothing:antialiased;
+  display:grid;place-items:center;padding-block:max(24px,env(safe-area-inset-top)) max(24px,env(safe-area-inset-bottom));
+  padding-left:max(16px,env(safe-area-inset-left));padding-right:max(16px,env(safe-area-inset-right))}
+.blocco{display:grid;gap:18px;justify-items:center;text-align:center;width:min(460px,100%)}
+.sotto{font-stretch:75%;font-weight:500;font-size:clamp(12px,1.5vw,15px);letter-spacing:.18em;text-transform:uppercase;color:var(--luce-soft);margin:0}
+.sigla{font-stretch:125%;font-weight:200;font-size:clamp(56px,12vw,120px);letter-spacing:.06em;line-height:.9;margin:0}
+.sigla b{font-weight:200;color:var(--oro)}
+.titolo{font-stretch:112%;font-weight:400;font-size:clamp(17px,2.4vw,24px);margin:0;text-wrap:balance}
+form{display:grid;gap:10px;width:100%;margin-top:8px}
+label{font-size:14px;color:var(--luce-soft);text-align:left}
+.riga{display:flex;gap:8px}
+input{flex:1;min-width:0;font:inherit;font-size:17px;color:var(--luce);background:var(--notte-2);border:1px solid var(--linea);border-radius:999px;padding:12px 18px}
+input:focus-visible,button:focus-visible,a:focus-visible{outline:2px solid var(--oro);outline-offset:2px}
+button{font:inherit;font-size:16px;font-weight:500;color:var(--notte);background:var(--luce);border:1px solid var(--luce);border-radius:999px;padding:12px 22px;cursor:pointer}
+button.sec{background:transparent;color:var(--luce);border-color:var(--linea)}
+button[disabled]{opacity:.6;cursor:wait}
+.msg{min-height:1.4em;font-size:14px;color:var(--luce-soft);margin:0}
+.msg.errore{color:var(--errore)}
+.nota{font-size:13px;color:var(--luce-soft);max-width:48ch;margin:6px 0 0}
+a{color:var(--luce)}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<main class="blocco">
+  <p class="sotto">Pannarano (BN) · località Bosco Capitolo</p>
+  <h1 class="sigla">F<b>·</b>D<b>·</b>F</h1>
+  <p class="titolo">Stabilimento di Bosco Capitolo · modello 3D interattivo</p>
+
+  <form id="accesso" autocomplete="off">
+    <label for="pw">Accesso riservato: inserisci la password ricevuta dallo studio</label>
+    <div class="riga"><input id="pw" type="password" autocomplete="current-password" required><button id="entra" type="submit">Entra</button></div>
+    <p class="msg" id="msg" role="status"></p>
+  </form>
+
+  <div id="sbloccato" hidden>
+    <p class="msg">Il modello è già sbloccato su questo dispositivo.</p>
+    <div class="riga" style="justify-content:center"><button id="apri" type="button">Apri il modello</button><button id="esci" class="sec" type="button">Esci</button></div>
+  </div>
+
+  <p class="nota">I file del modello sono cifrati: senza la password non si possono leggere. La password resta su questo dispositivo finché premi «Esci».
+    Studio arch. Franco Nicola · <a href="../v2/">torna alla home</a></p>
+</main>
+<script>
+(function(){
+  const $=id=>document.getElementById(id), msg=$('msg');
+  const qs=new URLSearchParams(location.search);
+  const base=new URL('./',location.href);
+  let dest=qs.get('dest'); if(!dest||!dest.startsWith(base.pathname+'app/')) dest=base.pathname+'app/';
+  const scrivi=(t,err)=>{ msg.textContent=t; msg.classList.toggle('errore',!!err); };
+  if(qs.get('scaduta')) scrivi('La password è cambiata: inseriscila di nuovo.',true);
+  if(!('serviceWorker' in navigator)||!window.crypto||!crypto.subtle){
+    $('entra').disabled=true; scrivi('Questo browser non può aprire il modello protetto: usa Chrome, Edge, Firefox o Safari aggiornati, non in finestra anonima.',true); return; }
+  const pronto=navigator.serviceWorker.register('sw.js?v=c6a701271c3c',{scope:'./'}).then(()=>navigator.serviceWorker.ready);
+  function chiedi(dati){ return pronto.then(reg=>new Promise(ok=>{ const c=new MessageChannel(); c.port1.onmessage=e=>ok(e.data); reg.active.postMessage(dati,[c.port2]); })); }
+  chiedi({tipo:'stato'}).then(r=>{ if(r&&r.chiave){ $('accesso').hidden=true; $('sbloccato').hidden=false; } }).catch(()=>{});
+  $('apri').onclick=()=>{ location.href=dest; };
+  $('esci').onclick=()=>chiedi({tipo:'esci'}).then(()=>{ $('sbloccato').hidden=true; $('accesso').hidden=false; scrivi('Sei uscito. Il modello è di nuovo chiuso su questo dispositivo.'); });
+  const hex=h=>new Uint8Array(h.match(/../g).map(x=>parseInt(x,16)));
+  $('accesso').addEventListener('submit',async e=>{
+    e.preventDefault(); const pw=$('pw').value; if(!pw) return;
+    $('entra').disabled=true; scrivi('Verifica della password…');
+    try{
+      const info=await (await fetch('chiave.json',{cache:'no-cache'})).json();
+      const base_=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+      const chiave=await crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt:hex(info.salt),iterations:info.iterazioni},base_,{name:'AES-GCM',length:256},false,['decrypt']);
+      const v=hex(info.verifica);
+      try{ await crypto.subtle.decrypt({name:'AES-GCM',iv:v.slice(0,12)},chiave,v.slice(12)); }
+      catch(_){ scrivi('Password non corretta.',true); $('entra').disabled=false; $('pw').select(); return; }
+      await chiedi({tipo:'chiave',chiave});
+      scrivi('Apertura del modello…'); location.href=dest;
+    }catch(err){ scrivi('Non è stato possibile aprire il modello: '+(err&&err.message||err),true); $('entra').disabled=false; }
+  });
+})();
+</script>
+</body>
+</html>

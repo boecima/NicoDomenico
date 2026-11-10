@@ -15,7 +15,8 @@ Ogni pagina ha il suo stile dentro il file: si può aprire anche da sola, ma le 
 - `.nojekyll` — dice a GitHub Pages di pubblicare i file così come sono
 - `studi/panarano/index.html` — modello 3D della sezione fiume–SS374–casa a Panarano (foto aerea, catasto, progetto DXF, rilievo; coordinate di A e B nascoste). Collegato dalla pagina di Pipicelli.
 - `v2/index.html` — home versione 2: uguale alla home, con in più il riquadro «Pratica F.D.F.». La home `index.html` resta quella di prima.
-- `fdf.html` — intro animata della pratica F.D.F. (droni che formano «FDF», si raccolgono ed esplodono come un fuoco d'artificio, circa 3 secondi), poi il pulsante che apre il modello 3D dello stabilimento (pagina privata su claude.ai: va condivisa con il link perché i visitatori la vedano). Collegata dal riquadro «Pratica F.D.F.» della home v2.
+- `fdf.html` — porta alla pagina di accesso `fdf/` (l'intro animata è stata tolta).
+- `fdf/` — modello 3D dello stabilimento F.D.F. **protetto da password**: `fdf/index.html` chiede la password; tutti i file del modello sono in `fdf/app/` **cifrati** (AES-256-GCM, chiave da PBKDF2-SHA256 della password, 310.000 iterazioni) e il service worker `fdf/sw.js` li decifra nel browser. Senza password i file non si leggono. La password non è scritta nel repository. Per rigenerare o cambiare password: nel repository privato `boecima/FDF`, `FDF_PASSWORD='…' python3 strumenti/pubblica_sito_protetto.py <cartella fdf del sito>`.
 - `studi/coni-ottici/index.html` — editor dei coni ottici e piano fotografico (Coni_Ottici_Editor_4) con in più «Salva su GitHub» e «Apri da GitHub» per il progetto .json.
 - Entrambe si rigenerano dal repository privato dello studio (`studi/panarano_sezione/build.py`, cartella `pubblico/`).
 
