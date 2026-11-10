@@ -16,6 +16,7 @@ Ogni pagina ha il suo stile dentro il file: si può aprire anche da sola, ma le 
 - `studi/panarano/index.html` — modello 3D della sezione fiume–SS374–casa a Panarano (foto aerea, catasto, progetto DXF, rilievo; coordinate di A e B nascoste). Collegato dalla pagina di Pipicelli.
 - `v2/index.html` — home versione 2: uguale alla home, con in più il riquadro «Pratica F.D.F.». La home `index.html` resta quella di prima.
 - `fdf.html` — porta alla pagina di accesso `fdf/` (l'intro animata è stata tolta).
+- `fdf-intro.html` — l'intro animata (droni che formano FDF e fuoco d'artificio), tenuta a parte solo per vederla; il pulsante finale porta alla pagina con la password. Non è collegata dalla home.
 - `fdf/` — modello 3D dello stabilimento F.D.F. **protetto da password**: `fdf/index.html` chiede la password; tutti i file del modello sono in `fdf/app/` **cifrati** (AES-256-GCM, chiave da PBKDF2-SHA256 della password, 310.000 iterazioni) e il service worker `fdf/sw.js` li decifra nel browser. Senza password i file non si leggono. La password non è scritta nel repository. Per rigenerare o cambiare password: nel repository privato `boecima/FDF`, `FDF_PASSWORD='…' python3 strumenti/pubblica_sito_protetto.py <cartella fdf del sito>`.
 - `studi/coni-ottici/index.html` — editor dei coni ottici e piano fotografico (Coni_Ottici_Editor_4) con in più «Salva su GitHub» e «Apri da GitHub» per il progetto .json.
 - Entrambe si rigenerano dal repository privato dello studio (`studi/panarano_sezione/build.py`, cartella `pubblico/`).
