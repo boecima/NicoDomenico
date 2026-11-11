@@ -158,6 +158,9 @@ details summary{cursor:pointer;font-size:13px;color:var(--muted)}
 .c3none{color:#ddd;padding:30px;margin:0}
 .c3txt{margin:0;padding:8px 12px;font-size:13px;color:var(--muted)}
 #coni3 .gh .coords{margin-top:8px}
+.c3zoom{display:flex;gap:6px;margin-bottom:6px}
+.c3zoom button{font:600 14px var(--sans);border:1px solid var(--line);background:var(--bg);color:var(--ink);padding:4px 12px;cursor:pointer}
+.c3mini{position:absolute;right:8px;bottom:8px;width:26%;min-width:120px;border:2px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.4);background:#ddd;cursor:pointer}
 </style><section class="card"><header><h2>Coni ottici</h2><span class="note">clic su un cono, nel 3D o in pianta, per vedere la sua foto</span></header>
 <p class="note">I coni si aggiungono, si spostano e si collegano alle foto nella pagina <a href="../panarano-coni3d/">Coni ottici 3D</a>; salvati su GitHub, compaiono anche qui.</p></section>
 <details><summary>Fonte dei dati e metodo</summary>
@@ -582,17 +585,17 @@ function renderPlan(){
   o+=`<polyline points="${pl(D.acquedotto)}" fill="none" stroke="#c9d3d8" stroke-width="2.5" stroke-dasharray="6 3"/>`;
   BUILD.forEach(b=>{ if(!S.case&&!b.casa&&!b.dep) return; if(b.casa&&S.dxf&&RIL) return; o+=`<polygon points="${pl(rect(b))}" fill="${b.casa?acc:'none'}" fill-opacity="${b.casa?.35:0}" stroke="${b.casa?acc:onOrto?'#fff':ink}" stroke-width="${b.casa?2:1}" opacity=".9"/>`; });
   const ic=P(...D.incrocio); o+=`<path d="M${ic[0]},${ic[1]-7}l6,10h-12z" fill="${ink}" stroke="${bg}"/>`;
-  o+=`<polygon points="${pl([[F.U0,F.V0],[F.U1,F.V0],[F.U1,S.cut?0:F.V1],[F.U0,S.cut?0:F.V1]].map(([u,v])=>F.toEN(u,v)))}" fill="${acc}" fill-opacity=".07" stroke="${onOrto?'#fff':mut}" stroke-dasharray="4 3"/>`;
+  if(!S.noSez){ o+=`<polygon points="${pl([[F.U0,F.V0],[F.U1,F.V0],[F.U1,S.cut?0:F.V1],[F.U0,S.cut?0:F.V1]].map(([u,v])=>F.toEN(u,v)))}" fill="${acc}" fill-opacity=".07" stroke="${onOrto?'#fff':mut}" stroke-dasharray="4 3"/>`; }
   const a=P(...F.toEN(F.U0,0)), b=P(...F.toEN(F.U1,0)), pa=P(...S.P0), pb=P(...S.P1);
-  o+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${acc}" stroke-width="1.2" stroke-dasharray="6 4"/><line x1="${pa[0]}" y1="${pa[1]}" x2="${pb[0]}" y2="${pb[1]}" stroke="${acc}" stroke-width="3"/>`;
+  if(!S.noSez){ o+=`<line x1="${a[0]}" y1="${a[1]}" x2="${b[0]}" y2="${b[1]}" stroke="${acc}" stroke-width="1.2" stroke-dasharray="6 4"/><line x1="${pa[0]}" y1="${pa[1]}" x2="${pb[0]}" y2="${pb[1]}" stroke="${acc}" stroke-width="3"/>`; }
   const v1=P(...F.toEN(F.L/2,40)), v2=P(...F.toEN(F.L/2,6));
-  o+=`<defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10Z" fill="${acc}"/></marker></defs><line x1="${v1[0]}" y1="${v1[1]}" x2="${v2[0]}" y2="${v2[1]}" stroke="${acc}" stroke-width="1.5" marker-end="url(#ar)"/>`;
-  o+=`<g class="h" data-h="0"><circle cx="${pa[0]}" cy="${pa[1]}" r="14" fill="transparent"/><circle cx="${pa[0]}" cy="${pa[1]}" r="7" fill="${wat}" stroke="#fff" stroke-width="2"/><text x="${pa[0]+10}" y="${pa[1]-9}" font-size="14" font-weight="600" fill="${ink}" paint-order="stroke" stroke="${bg}" stroke-width="3">A</text></g>`;
-  o+=`<g class="h" data-h="1"><circle cx="${pb[0]}" cy="${pb[1]}" r="14" fill="transparent"/><circle cx="${pb[0]}" cy="${pb[1]}" r="7" fill="${acc}" stroke="#fff" stroke-width="2"/><text x="${pb[0]+10}" y="${pb[1]-9}" font-size="14" font-weight="600" fill="${ink}" paint-order="stroke" stroke="${bg}" stroke-width="3">B</text></g>`;
+  if(!S.noSez){ o+=`<defs><marker id="ar" viewBox="0 0 10 10" refX="8" refY="5" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0L10,5L0,10Z" fill="${acc}"/></marker></defs><line x1="${v1[0]}" y1="${v1[1]}" x2="${v2[0]}" y2="${v2[1]}" stroke="${acc}" stroke-width="1.5" marker-end="url(#ar)"/>`; }
+  if(!S.noSez){ o+=`<g class="h" data-h="0"><circle cx="${pa[0]}" cy="${pa[1]}" r="14" fill="transparent"/><circle cx="${pa[0]}" cy="${pa[1]}" r="7" fill="${wat}" stroke="#fff" stroke-width="2"/><text x="${pa[0]+10}" y="${pa[1]-9}" font-size="14" font-weight="600" fill="${ink}" paint-order="stroke" stroke="${bg}" stroke-width="3">A</text></g>`; }
+  if(!S.noSez){ o+=`<g class="h" data-h="1"><circle cx="${pb[0]}" cy="${pb[1]}" r="14" fill="transparent"/><circle cx="${pb[0]}" cy="${pb[1]}" r="7" fill="${acc}" stroke="#fff" stroke-width="2"/><text x="${pb[0]+10}" y="${pb[1]-9}" font-size="14" font-weight="600" fill="${ink}" paint-order="stroke" stroke="${bg}" stroke-width="3">B</text></g>`; }
   o+=`<g transform="translate(${PW-26},30)"><circle r="17" cy="-2" fill="${bg}" opacity=".85"/><path d="M0,-16L6,5L0,1L-6,5Z" fill="${ink}"/><text y="14" font-size="10" text-anchor="middle" fill="${ink}" font-weight="600">N</text></g>`;
   o+=`<g transform="translate(14,${PH-14})"><rect x="-6" y="-18" width="64" height="27" fill="${bg}" opacity=".85"/><rect width="50" height="5" fill="${ink}"/><text y="-5" font-size="10" fill="${ink}">0</text><text x="50" y="-5" font-size="10" text-anchor="end" fill="${ink}">50 m</text></g>`;
   HOOK.plan.forEach(f=>{ o+=f(P,PW,PH); });
-  svg.setAttribute('viewBox',`0 0 ${PW} ${PH}`); svg.innerHTML=o;
+  svg.setAttribute('viewBox',S.pv?S.pv.join(' '):`0 0 ${PW} ${PH}`); svg.innerHTML=o;
 }
 let drag=null;
 $('pia').addEventListener('pointerdown',e=>{ const h=e.target.closest('.h'); if(!h) return; drag=+h.dataset.h; $('pia').setPointerCapture(e.pointerId); e.preventDefault(); });
@@ -643,7 +646,7 @@ new MutationObserver(retheme).observe(document.documentElement,{attributes:true,
 computeM(); update(false);
 if(window.THREE&&THREE.OrbitControls){ try{ init3D(); }catch(e){ console.error(e); viewer.insertAdjacentHTML('beforeend','<p class="legend" style="top:60px;bottom:auto">Il 3D non si è avviato su questo dispositivo (WebGL non disponibile). Sezione e pianta qui sotto restano valide.</p>'); } }
 else viewer.insertAdjacentHTML('beforeend','<p class="legend" style="top:60px;bottom:auto">Libreria 3D non caricata: controlla la connessione e ricarica la pagina.</p>');
-window.PANARANO={labelS,D,get G(){return G;},S,HOOK,get F(){return F;},X,Y,hAt,rawAt,frame,build,renderPlan,renderSection,renderHead,update,setView,viewer,E0,E1,N0,N1,lineGeo,label,css,ROADS,RIVER,near,roadZ,dens,
+window.PANARANO={labelS,D,PW,PH,get G(){return G;},S,HOOK,get F(){return F;},X,Y,hAt,rawAt,frame,build,renderPlan,renderSection,renderHead,update,setView,viewer,E0,E1,N0,N1,lineGeo,label,css,ROADS,RIVER,near,roadZ,dens,
   get renderer(){return renderer;},get cam(){return cam;},get ctl(){return ctl;},get scene(){return scene;}};
 })();
 </script>
@@ -680,9 +683,9 @@ P.HOOK.build.push(g=>{ if(!C.show) return; const F=P.F, zTop=P.S.cut?0:F.V1;
     const dir=new THREE.Vector3(tu-u,Math.tan(rad(c.pitch)),tv-v).normalize();
     const apex=new THREE.Vector3(P.X(u),P.Y(quota(c)),v), co=col(i), sel=i===C.sel;
     const R=c.L*Math.tan(rad(Math.min(c.fov,170)/2));
-    const geo=new THREE.ConeGeometry(R,c.L,48,1,true); geo.translate(0,-c.L/2,0);
+    const geo=new THREE.ConeGeometry(R,c.L,48,1,false); geo.translate(0,-c.L/2,0);
     const q=new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0,-1,0),dir);
-    const mesh=new THREE.Mesh(geo,new THREE.MeshBasicMaterial({color:co,transparent:true,opacity:sel?.5:.32,side:THREE.DoubleSide,depthWrite:false}));
+    const mesh=new THREE.Mesh(geo,new THREE.MeshLambertMaterial({color:co,emissive:co,emissiveIntensity:.35,transparent:true,opacity:sel?.95:.85,side:THREE.DoubleSide}));
     mesh.position.copy(apex); mesh.quaternion.copy(q); mesh.userData.cono=c.id; mesh.renderOrder=3; g.add(mesh);
     const ed=new THREE.LineSegments(new THREE.EdgesGeometry(new THREE.ConeGeometry(R,c.L,48,1,true).translate(0,-c.L/2,0),30),new THREE.LineBasicMaterial({color:co}));
     ed.position.copy(apex); ed.quaternion.copy(q); g.add(ed);
@@ -695,17 +698,32 @@ P.HOOK.build.push(g=>{ if(!C.show) return; const F=P.F, zTop=P.S.cut?0:F.V1;
 
 // ---------- pianta: settore, cerchio numerato, due maniglie ai bordi ----------
 const edge=c=>{ const a1=rad(c.h-c.fov/2), a2=rad(c.h+c.fov/2); return [[c.e+c.L*Math.sin(a1),c.n+c.L*Math.cos(a1)],[c.e+c.L*Math.sin(a2),c.n+c.L*Math.cos(a2)]]; };
-P.HOOK.plan.push(Pp=>{ if(!C.show) return ''; let o='';
+P.HOOK.plan.push(Pp=>{ if(!C.show) return ''; let o=''; const z=P.S.pv?P.S.pv[2]/P.PW:1, sw=w=>(w*z).toFixed(2);
   C.list.forEach((c,i)=>{ const co=col(i), sel=i===C.sel, p=Pp(c.e,c.n); let d=`M${p[0].toFixed(1)},${p[1].toFixed(1)}`;
     for(let k=0;k<=36;k++){ const a=rad(c.h-c.fov/2+c.fov*k/36), q=Pp(c.e+c.L*Math.sin(a),c.n+c.L*Math.cos(a)); d+=`L${q[0].toFixed(1)},${q[1].toFixed(1)}`; }
-    o+=`<path d="${d}Z" fill="${co}" fill-opacity="${sel?.5:.3}" stroke="${co}" stroke-width="${sel?2:1.2}"/>`; });
+    o+=`<path d="${d}Z" fill="${co}" fill-opacity="${sel?.5:.3}" stroke="${co}" stroke-width="${sw(sel?2:1.2)}"/>`; });
   C.list.forEach((c,i)=>{ const co=col(i), p=Pp(c.e,c.n);
-    if(i===C.sel&&!RO) edge(c).forEach((q,k)=>{ const s=Pp(...q); o+=`<g class="c3h" data-i="${i}" data-k="${k?'R':'L'}" style="cursor:grab"><circle cx="${s[0]}" cy="${s[1]}" r="14" fill="transparent"/><circle cx="${s[0]}" cy="${s[1]}" r="4.5" fill="#fff" stroke="${co}" stroke-width="2.2"/></g>`; });
-    o+=`<g class="c3h" data-i="${i}" data-k="C" style="cursor:grab"><circle cx="${p[0]}" cy="${p[1]}" r="14" fill="transparent"/><circle cx="${p[0]}" cy="${p[1]}" r="7" fill="#fff" stroke="${co}" stroke-width="2"/><text x="${p[0]}" y="${p[1]+3.6}" font-size="10" font-weight="700" text-anchor="middle" fill="${co}">${i+1}</text></g>`; });
+    if(i===C.sel&&!RO) edge(c).forEach((q,k)=>{ const s=Pp(...q); o+=`<g class="c3h" data-i="${i}" data-k="${k?'R':'L'}" style="cursor:grab"><circle cx="${s[0]}" cy="${s[1]}" r="${sw(14)}" fill="transparent"/><circle cx="${s[0]}" cy="${s[1]}" r="${sw(4.5)}" fill="#fff" stroke="${co}" stroke-width="${sw(2.2)}"/></g>`; });
+    o+=`<g class="c3h" data-i="${i}" data-k="C" style="cursor:grab"><circle cx="${p[0]}" cy="${p[1]}" r="${sw(14)}" fill="transparent"/><circle cx="${p[0]}" cy="${p[1]}" r="${sw(7)}" fill="#fff" stroke="${co}" stroke-width="${sw(2)}"/><text x="${p[0]}" y="${(p[1]+3.6*z).toFixed(2)}" font-size="${sw(10)}" font-weight="700" text-anchor="middle" fill="${co}">${i+1}</text></g>`; });
+  if(C.tmp&&C.tmp.length){ const t=C.tmp.map(q=>Pp(q[0],q[1])), a=t[0];
+    for(let k=1;k<t.length;k++) o+=`<line x1="${a[0]}" y1="${a[1]}" x2="${t[k][0]}" y2="${t[k][1]}" stroke="#111" stroke-width="${sw(2)}" stroke-dasharray="${sw(6)} ${sw(4)}"/>`;
+    t.forEach(q=>{ o+=`<circle cx="${q[0]}" cy="${q[1]}" r="${sw(5)}" fill="#111"/>`; }); }
   return o; });
 const svg=$('pia');
 function toEN(ev){ const pt=svg.createSVGPoint(); pt.x=ev.clientX; pt.y=ev.clientY; const q=pt.matrixTransform(svg.getScreenCTM().inverse()); return [q.x+P.E0,P.N1-q.y]; }
+function disegna(e,n){ C.tmp.push([e,n]); const k=C.tmp.length;
+  if(k===1){ msg('Ora clicca un punto sul bordo sinistro di quello che si vede nella foto.'); }
+  else if(k===2){ msg('Ora clicca un punto sul bordo destro di quello che si vede nella foto.'); }
+  else { const [a,l,r]=C.tmp, al=norm(deg(Math.atan2(l[0]-a[0],l[1]-a[1]))), ar=norm(deg(Math.atan2(r[0]-a[0],r[1]-a[1])));
+    const dd=norm(ar-al); let fov,h; if(dd<=180){ fov=dd; h=norm(al+dd/2); } else { fov=360-dd; h=norm(ar+fov/2); }
+    const L=(Math.hypot(l[0]-a[0],l[1]-a[1])+Math.hypot(r[0]-a[0],r[1]-a[1]))/2;
+    let c=C.redraw!=null?C.list[C.redraw]:null; if(!c){ c=nuovo({nome:'Cono '+(C.list.length+1)}); C.list.push(c); }
+    Object.assign(c,{e:a[0],n:a[1],h,fov:Math.max(5,Math.min(170,fov)),L:Math.max(5,L)}); C.sel=C.list.indexOf(c);
+    C.tmp=null; C.drawing=false; C.redraw=null; $('c3draw').setAttribute('aria-pressed','false');
+    msg('Cono '+(C.sel+1)+' disegnato: apertura '+Math.round(c.fov)+'°, verso '+dirWord(c.h)+'. Puoi correggerlo trascinando il cerchio e i pallini.'); salvaLocale(); refresh(); return; }
+  P.renderPlan(); }
 svg.addEventListener('pointerdown',ev=>{
+  if(C.drawing&&!RO){ ev.preventDefault(); ev.stopImmediatePropagation(); const [e,n]=toEN(ev); disegna(e,n); return; }
   if(C.adding&&!RO){ ev.preventDefault(); ev.stopImmediatePropagation(); const [e,n]=toEN(ev); aggiungi(e,n); return; }
   const h=ev.target.closest('.c3h'); if(!h) return; ev.preventDefault(); ev.stopImmediatePropagation();
   if(RO){ const i=+h.dataset.i; C.sel=i; P.renderPlan(); P.build(); popup(i); return; }
@@ -738,7 +756,7 @@ document.body.appendChild(pop);
 function popup(i){ const c=C.list[i]; if(!c) return; C.pop=i; const b=pop.querySelector('.c3box');
   pop.querySelector('.c3dot').style.background=col(i); pop.querySelector('.c3dot').textContent=i+1; pop.querySelector('strong').textContent=c.nome||('Cono '+(i+1));
   pop.querySelector('.c3img').innerHTML=c.src?`<img src="${c.src}" alt="Foto del cono ${i+1}">`:'<p class="c3none">Nessuna foto collegata a questo cono. Caricala dall\'elenco «Coni ottici».</p>';
-  pop.querySelector('.c3txt').textContent=(c.descr?c.descr+' · ':'')+`ripresa verso ${dirWord(c.h)} (${Math.round(c.h)}°), apertura ${Math.round(c.fov)}°, a ${quota(c).toFixed(1)} m s.l.m.`;
+  pop.querySelector('.c3txt').textContent=(c.descr?c.descr+' · ':'')+`ripresa verso ${dirWord(c.h)} (${Math.round(c.h)}°), apertura ${Math.round(c.fov)}°`;
   pop.hidden=false; b.focus&&b.focus(); }
 pop.addEventListener('click',e=>{ const a=e.target.dataset&&e.target.dataset.a; if(e.target===pop||a==='x'){ pop.hidden=true; return; }
   if(a==='prev'&&C.list.length) popup((C.pop-1+C.list.length)%C.list.length); if(a==='next'&&C.list.length) popup((C.pop+1)%C.list.length);
@@ -751,7 +769,7 @@ function salvaLocale(){ if(!RO&&!store.set(KEY,JSON.stringify(dati()))) $('c3msg
 // ---------- elenco ----------
 function aggiungi(e,n){ const c=nuovo({nome:'Cono '+(C.list.length+1),e,n}); C.list.push(c); C.sel=C.list.length-1; C.adding=false; $('c3add').setAttribute('aria-pressed','false');
   msg('Cono '+C.list.length+' posato: in pianta trascina il cerchio numerato per spostarlo e i due pallini per direzione, apertura e profondità. Poi carica la foto.'); salvaLocale(); refresh(); }
-function info(){ const c=C.list[C.sel], t=$('c3info'); if(t&&c) t.textContent=`Direzione ${dirWord(c.h)} (${Math.round(c.h)}°) · apertura ${Math.round(c.fov)}° · profondità ${Math.round(c.L)} m · ${quota(c).toFixed(1)} m s.l.m.`; }
+function info(){ const c=C.list[C.sel], t=$('c3info'); if(t&&c) t.textContent=`Direzione ${dirWord(c.h)} (${Math.round(c.h)}°) · apertura ${Math.round(c.fov)}° · profondità ${Math.round(c.L)} m`; }
 function lista(){ const el=$('c3list'); el.innerHTML='';
   if(!C.list.length){ el.innerHTML='<p class="note">Nessun cono. Premi «Aggiungi cono» e clicca sulla pianta o sul modello 3D nel punto da cui hai scattato.</p>'; return; }
   C.list.forEach((c,i)=>{ const d=document.createElement('div'); d.className='c3row'; d.setAttribute('aria-current',String(i===C.sel));
@@ -759,7 +777,7 @@ function lista(){ const el=$('c3list'); el.innerHTML='';
     const nm=d.querySelector('.c3nm'); nm.value=c.nome; nm.oninput=()=>{ c.nome=nm.value; salvaLocale(); };
     if(i===C.sel){ const m=document.createElement('div'); m.className='c3more';
       m.innerHTML=`<div class="btns"><label class="c3file">${c.src?'Sostituisci foto':'Carica foto'}<input type="file" accept="image/*" hidden></label>
-        <button type="button" data-a="vedi" ${c.src?'':'disabled'}>Vedi foto</button><button type="button" data-a="up" ${i?'':'disabled'}>▲</button><button type="button" data-a="down" ${i<C.list.length-1?'':'disabled'}>▼</button><button type="button" data-a="del">Elimina</button></div>
+        <button type="button" data-a="vedi" ${c.src?'':'disabled'}>Vedi foto</button><button type="button" data-a="ridis">Ridisegna in pianta</button><button type="button" data-a="up" ${i?'':'disabled'}>▲</button><button type="button" data-a="down" ${i<C.list.length-1?'':'disabled'}>▼</button><button type="button" data-a="del">Elimina</button></div>
         <textarea placeholder="Descrizione (compare nella finestra della foto)"></textarea>
         <div class="ch"><span>punto di ripresa</span><select data-f="livello"><option value="terreno">sul terreno o strada</option><option value="fiume">nel fiume</option></select><output></output>
         <span>altezza occhi</span><input type="range" data-f="dh" min="0" max="15" step="0.1"><output></output>
@@ -772,6 +790,7 @@ function lista(){ const el=$('c3list'); el.innerHTML='';
         inp.oninput=()=>{ c[k]=k==='livello'?inp.value:+inp.value; if(k!=='livello') inp.nextElementSibling.textContent=fmt(k); info(); clearTimeout(C.tm); C.tm=setTimeout(()=>{ P.build(); salvaLocale(); },80); }; });
       m.querySelector('input[type=file]').onchange=ev=>{ const f=ev.target.files[0]; if(f) riduci(f).then(src=>{ c.src=src; salvaLocale(); lista(); msg('Foto collegata al cono '+(i+1)+'.'); }); };
       m.querySelector('[data-a=vedi]').onclick=()=>popup(i);
+      m.querySelector('[data-a=ridis]').onclick=()=>{ C.drawing=true; C.tmp=[]; C.redraw=i; $('c3draw').setAttribute('aria-pressed','true'); msg('Ridisegna il cono '+(i+1)+': clicca il punto da cui hai scattato.'); };
       m.querySelector('[data-a=up]').onclick=()=>sposta(i,-1); m.querySelector('[data-a=down]').onclick=()=>sposta(i,1);
       m.querySelector('[data-a=del]').onclick=()=>{ C.list.splice(i,1); C.sel=Math.min(C.sel,C.list.length-1); salvaLocale(); refresh(); };
       d.appendChild(m); }
@@ -782,10 +801,38 @@ function sposta(i,k){ const j=i+k; if(j<0||j>=C.list.length) return; [C.list[i],
 const msg=t=>{ $('c3msg').textContent=t; };
 function riduci(file,max=1800){ return new Promise((ok,ko)=>{ const im=new Image(); im.onload=()=>{ const k=Math.min(1,max/Math.max(im.naturalWidth,im.naturalHeight)), c=document.createElement('canvas');
   c.width=Math.round(im.naturalWidth*k); c.height=Math.round(im.naturalHeight*k); c.getContext('2d').drawImage(im,0,0,c.width,c.height); URL.revokeObjectURL(im.src); ok(c.toDataURL('image/jpeg',.84)); }; im.onerror=ko; im.src=URL.createObjectURL(file); }); }
-$('c3add').onclick=()=>{ C.adding=!C.adding; $('c3add').setAttribute('aria-pressed',String(C.adding)); msg(C.adding?'Clicca sulla pianta o sul modello 3D nel punto da cui hai scattato la foto.':''); };
+$('c3draw').onclick=()=>{ C.drawing=!C.drawing; C.adding=false; C.tmp=C.drawing?[]:null; C.redraw=null; $('c3draw').setAttribute('aria-pressed',String(C.drawing)); $('c3add').setAttribute('aria-pressed','false');
+  msg(C.drawing?'Disegna il cono in pianta: clicca il punto da cui hai scattato.':''); P.renderPlan(); };
+$('c3add').onclick=()=>{ C.drawing=false; C.tmp=null; $('c3draw').setAttribute('aria-pressed','false'); C.adding=!C.adding; $('c3add').setAttribute('aria-pressed',String(C.adding)); msg(C.adding?'Clicca sulla pianta o sul modello 3D nel punto da cui hai scattato la foto.':''); };
 { const bar=document.querySelector('.tools'), ex=bar&&bar.querySelector('.exag'); if(bar){ const b=document.createElement('button'); b.className='tg'; b.id='tConi3'; b.textContent='Coni';
   b.setAttribute('aria-pressed','true'); b.onclick=()=>{ C.show=!C.show; b.setAttribute('aria-pressed',String(C.show)); P.renderPlan(); P.build(); }; bar.insertBefore(b,ex); } }
 
+// ---------- pianta grande con zoom e stralcio d'insieme ----------
+if(!RO&&window.CONI3D_ZOOM){
+  const PW=P.PW, PH=P.PH; P.S.pv=[0,0,PW,PH];
+  const clampV=()=>{ const v=P.S.pv; v[2]=Math.max(40,Math.min(PW,v[2])); v[3]=v[2]*PH/PW; v[0]=Math.max(0,Math.min(PW-v[2],v[0])); v[1]=Math.max(0,Math.min(PH-v[3],v[1])); };
+  const zoomAt=(f,cx,cy)=>{ const v=P.S.pv, nw=v[2]*f; v[0]=cx-(cx-v[0])*nw/v[2]; v[1]=cy-(cy-v[1])*nw/v[2]; v[2]=nw; clampV(); P.renderPlan(); mini(); };
+  const svgPt=ev=>{ const pt=svg.createSVGPoint(); pt.x=ev.clientX; pt.y=ev.clientY; return pt.matrixTransform(svg.getScreenCTM().inverse()); };
+  svg.addEventListener('wheel',ev=>{ ev.preventDefault(); const q=svgPt(ev); zoomAt(ev.deltaY<0?1/1.25:1.25,q.x,q.y); },{passive:false});
+  let pan=null; const pts=new Map();
+  svg.addEventListener('pointerdown',ev=>{ if(ev.target.closest('.c3h,.h')||C.drawing||C.adding) return; pts.set(ev.pointerId,[ev.clientX,ev.clientY]);
+    pan={x:ev.clientX,y:ev.clientY,v:P.S.pv.slice(),d:pts.size===2?Math.hypot(...[...pts.values()].reduce((a,b)=>[a[0]-b[0],a[1]-b[1]])):0}; try{svg.setPointerCapture(ev.pointerId);}catch(e){} });
+  svg.addEventListener('pointermove',ev=>{ if(!pan||C.drag) return; if(pts.has(ev.pointerId)) pts.set(ev.pointerId,[ev.clientX,ev.clientY]);
+    const r=svg.getBoundingClientRect(), k=P.S.pv[2]/r.width;
+    if(pts.size===2&&pan.d){ const d=Math.hypot(...[...pts.values()].reduce((a,b)=>[a[0]-b[0],a[1]-b[1]])); const q=svgPt(ev); zoomAt(pan.d/d,q.x,q.y); pan.d=d; return; }
+    P.S.pv[0]=pan.v[0]-(ev.clientX-pan.x)*k; P.S.pv[1]=pan.v[1]-(ev.clientY-pan.y)*k; clampV(); P.renderPlan(); mini(); });
+  const end=ev=>{ pts.delete(ev.pointerId); if(!pts.size) pan=null; }; svg.addEventListener('pointerup',end); svg.addEventListener('pointercancel',end);
+  const card=svg.closest('section'); const bx=document.createElement('div'); bx.className='c3zoom';
+  bx.innerHTML='<button type="button" data-z="in" title="Ingrandisci">+</button><button type="button" data-z="out" title="Riduci">−</button><button type="button" data-z="all">Tutta l\'area</button>';
+  card.insertBefore(bx,svg.parentNode); bx.onclick=e=>{ const z=e.target.dataset.z, v=P.S.pv; if(z==='in') zoomAt(1/1.5,v[0]+v[2]/2,v[1]+v[3]/2); if(z==='out') zoomAt(1.5,v[0]+v[2]/2,v[1]+v[3]/2); if(z==='all'){ P.S.pv=[0,0,PW,PH]; P.renderPlan(); mini(); } };
+  const mn=document.createElementNS('http://www.w3.org/2000/svg','svg'); mn.setAttribute('class','c3mini'); mn.setAttribute('viewBox',`0 0 ${PW} ${PH}`); svg.parentNode.style.position='relative'; svg.parentNode.appendChild(mn);
+  function mini(){ const img=svg.querySelector('image'), v=P.S.pv; let o=img?`<image href="${img.getAttribute('href')}" x="0" y="0" width="${PW}" height="${PH}" preserveAspectRatio="none"/>`:`<rect width="${PW}" height="${PH}" fill="#ccc"/>`;
+    C.list.forEach((c,i)=>{ o+=`<circle cx="${c.e-P.E0}" cy="${P.N1-c.n}" r="7" fill="${col(i)}" stroke="#fff" stroke-width="2"/>`; });
+    o+=`<rect x="${v[0]}" y="${v[1]}" width="${v[2]}" height="${v[3]}" fill="rgba(255,255,255,.15)" stroke="#e11" stroke-width="5"/>`; mn.innerHTML=o; }
+  mn.addEventListener('pointerdown',ev=>{ ev.stopPropagation(); const r=mn.getBoundingClientRect(), x=(ev.clientX-r.left)/r.width*PW, y=(ev.clientY-r.top)/r.height*PH, v=P.S.pv; v[0]=x-v[2]/2; v[1]=y-v[3]/2; clampV(); P.renderPlan(); mini(); });
+  P.HOOK.plan.push(()=>{ setTimeout(mini,0); return ''; });
+  zoomAt(0.45,(P.F?P.F.toEN(0,0)[0]:0)-P.E0,P.N1-(P.F?P.F.toEN(0,0)[1]:0));
+}
 // ---------- salvataggio ----------
 const dati=()=>({versione:1,coni:C.list.map(c=>({nome:c.nome,descr:c.descr,e:+c.e.toFixed(2),n:+c.n.toFixed(2),livello:c.livello,dh:c.dh,h:+c.h.toFixed(1),fov:+c.fov.toFixed(1),L:+c.L.toFixed(1),pitch:c.pitch,src:c.src})),salvato:new Date().toISOString()});
 function carica(d){ C.list=(d.coni||[]).map(c=>nuovo(c)); C.sel=RO?-1:(C.list.length?0:-1); refresh(); }
