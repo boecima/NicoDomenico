@@ -811,7 +811,8 @@ P.HOOK.build.push(g=>{ if(!C.show) return; const F=P.F, zTop=P.S.cut?0:F.V1;
 
 // ---------- pianta: settore, cerchio numerato, due maniglie ai bordi ----------
 const edge=c=>{ const a1=rad(c.h-c.fov/2), a2=rad(c.h+c.fov/2); return [[c.e+c.L*Math.sin(a1),c.n+c.L*Math.cos(a1)],[c.e+c.L*Math.sin(a2),c.n+c.L*Math.cos(a2)]]; };
-P.HOOK.plan.push(Pp=>{ if(!C.show) return ''; let o=''; const z=P.S.pv?P.S.pv[2]/P.PW:1, sw=w=>(w*z).toFixed(2);
+P.HOOK.plan.push(Pp=>{ if(!C.show) return ''; let o='';
+  if(C.casa){ const p=Pp(P.D.casa[0],P.D.casa[1]), k=P.S.pv?P.S.pv[2]/P.PW:1; o+=`<circle cx="${p[0]}" cy="${p[1]}" r="${16*k}" fill="none" stroke="#d00" stroke-width="${3*k}"/><text x="${p[0]}" y="${p[1]-21*k}" text-anchor="middle" font-family="Arial,sans-serif" font-weight="700" font-size="${16*k}" fill="#d00" stroke="#fff" stroke-width="${4*k}" paint-order="stroke">CASA</text>`; } const z=P.S.pv?P.S.pv[2]/P.PW:1, sw=w=>(w*z).toFixed(2);
   C.list.forEach((c,i)=>{ if(C.only!=null&&i!==C.only) return; const co=col(i), sel=i===C.sel, p=Pp(c.e,c.n); let d=`M${p[0].toFixed(1)},${p[1].toFixed(1)}`;
     for(let k=0;k<=36;k++){ const a=rad(c.h-c.fov/2+c.fov*k/36), q=Pp(c.e+c.L*Math.sin(a),c.n+c.L*Math.cos(a)); d+=`L${q[0].toFixed(1)},${q[1].toFixed(1)}`; }
     o+=`<path d="${d}Z" fill="${co}" fill-opacity="${sel?.5:.3}" stroke="${co}" stroke-width="${sw(sel?2:1.2)}"/>`; });
@@ -966,15 +967,25 @@ const zb=document.querySelector('.c3zoom');
 if(zb){ const a=document.createElement('button'); a.type='button'; a.textContent='Salva immagine'; a.onclick=async()=>scaricaURL(await pngPianta(3000),'Pannarano_coni_pianta.png');
   const b=document.createElement('button'); b.type='button'; b.textContent='Schermo intero'; b.onclick=()=>schermoIntero(svg.closest('section')); zb.appendChild(a); zb.appendChild(b); }
 // vista 3D di un cono: alle spalle del punto di ripresa, più in alto, verso il cono
-function inquadra(c){ const F=P.F, [u,v]=F.toUV(c.e,c.n), az=rad(c.h), [tu,tv]=F.toUV(c.e+Math.sin(az),c.n+Math.cos(az)), du=tu-u, dv=tv-v;
-  const ay=P.Y(quota(c)), back=Math.max(55,c.L*1.5); P.cam.position.set(P.X(u)-du*back-dv*back*.45,ay+back*1.05,v-dv*back+du*back*.45);
-  P.ctl.target.set(P.X(u)+du*c.L*.45,ay,v+dv*c.L*.45); P.cam.lookAt(P.ctl.target); P.cam.updateMatrixWorld(); }
-function boxCono(c0,lista,minW=90,f=1.8){ const pts=[]; for(const c of (lista||[c0])){ pts.push([c.e,c.n]); for(let k=0;k<=8;k++){ const a=rad(c.h-c.fov/2+c.fov*k/8); pts.push([c.e+c.L*Math.sin(a),c.n+c.L*Math.cos(a)]); } }
+function inquadra(c){ const F=P.F, D=P.D, az=rad(c.h), te=c.e+c.L*Math.sin(az), tn=c.n+c.L*Math.cos(az);   // cono e casa nella stessa vista
+  const pts=[[c.e,c.n,quota(c)],[te,tn,P.hAt(te,tn)],[D.casa[0],D.casa[1],P.hAt(D.casa[0],D.casa[1])+6]].map(([e,n,z])=>{ const [u,v]=F.toUV(e,n); return new THREE.Vector3(P.X(u),P.Y(z),v); });
+  const ctr=pts.reduce((a,p)=>a.add(p),new THREE.Vector3()).multiplyScalar(1/pts.length); let r=40; pts.forEach(p=>r=Math.max(r,Math.hypot(p.x-ctr.x,p.z-ctr.z)));
+  const [u0,v0]=F.toUV(c.e,c.n), [u1,v1]=F.toUV(c.e+Math.sin(az),c.n+Math.cos(az)); let du=P.X(u1)-P.X(u0), dv=v1-v0; const k=Math.hypot(du,dv)||1; du/=k; dv/=k;
+  pts.push(pts[2].clone().add(new THREE.Vector3(0,40,0)));   // anche il cartello CASA
+  // di lato rispetto alla linea punto di ripresa–casa, un po' alle spalle del cono: così si vedono entrambi
+  let lx=pts[2].x-pts[0].x, lz=pts[2].z-pts[0].z; const ll=Math.hypot(lx,lz)||1; lx/=ll; lz/=ll; let sx=-lz, sz=lx; if(sx*du+sz*dv>0){ sx=-sx; sz=-sz; }
+  for(let d=r*1.2,t=0;t<40;t++,d*=1.08){ P.cam.position.set(ctr.x+(-du*.55+sx*.85)*d,ctr.y+d*1.25,ctr.z+(-dv*.55+sz*.85)*d); P.ctl.target.copy(ctr); P.cam.lookAt(ctr); P.cam.updateMatrixWorld(); P.cam.updateProjectionMatrix();
+    if(pts.every(p=>{ if(p.clone().applyMatrix4(P.cam.matrixWorldInverse).z>-1) return false; const q=p.clone().project(P.cam); return Math.abs(q.x)<.82&&Math.abs(q.y)<.82; })) break; }
+  P.cam.far=Math.max(P.cam.far,P.cam.position.distanceTo(ctr)*4); P.cam.updateProjectionMatrix(); }
+function boxCono(c0,lista,minW=90,f=1.8,extra=[]){ const pts=extra.slice(); for(const c of (lista||[c0])){ pts.push([c.e,c.n]); for(let k=0;k<=8;k++){ const a=rad(c.h-c.fov/2+c.fov*k/8); pts.push([c.e+c.L*Math.sin(a),c.n+c.L*Math.cos(a)]); } }
   let x0=Math.min(...pts.map(p=>p[0])), x1=Math.max(...pts.map(p=>p[0])), y0=Math.min(...pts.map(p=>p[1])), y1=Math.max(...pts.map(p=>p[1]));
   const cx=(x0+x1)/2, cy=(y0+y1)/2; let w=Math.max(minW,(x1-x0)*f,(y1-y0)*f*P.PW/P.PH); const h=w*P.PH/P.PW;
   return [cx-P.E0-w/2, P.N1-cy-h/2, w, h]; }
 const llOf=c=>{ const D=P.D; return [D.C[0]+c.n/D.ky, D.C[1]+c.e/D.kx]; };
 const esc=t=>String(t||'').replace(/[&<>"]/g,ch=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[ch]));
+function pinCasa(){ const D=P.D, F=P.F, [u,v]=F.toUV(D.casa[0],D.casa[1]), z=P.Y(P.hAt(D.casa[0],D.casa[1])), g=new THREE.Group();
+  const ln=new THREE.Mesh(new THREE.CylinderGeometry(.5,.5,22,8),new THREE.MeshBasicMaterial({color:0xdd0000})); ln.position.set(P.X(u),z+11+8,v); g.add(ln);
+  const l=P.label('CASA',{size:22,h:9,bold:true,color:'#fff',bg:'rgba(210,0,0,.95)'}); l.position.set(P.X(u),z+36,v); g.add(l); P.scene.add(g); return g; }
 async function pianoFotografico(){ if(!C.list.length){ msg('Non ci sono coni.'); return; }
   msg('Preparo il piano fotografico: genero gli stralci e le viste 3D...');
   const keep={pv:P.S.pv&&P.S.pv.slice(),sel:C.sel,pos:P.cam.position.clone(),tg:P.ctl.target.clone(),cut:P.S.cut,ctl:P.ctl.enabled};
@@ -982,16 +993,17 @@ async function pianoFotografico(){ if(!C.list.length){ msg('Non ci sono coni.');
   P.S.pv=boxCono(null,C.list,120,1.25); C.only=null; C.sel=-1; P.renderPlan(); const tutta=await pngPianta(2400,'image/jpeg');
   const schede=[];
   for(let i=0;i<C.list.length;i++){ const c=C.list[i]; C.only=i; C.sel=i;
-    P.S.pv=boxCono(c); P.renderPlan(); const pianta=await pngPianta(1600,'image/jpeg');
-    P.build(); inquadra(c); const vista=png3D(1600,1000);
+    C.casa=true; P.S.pv=boxCono(c,null,120,1.3,[[P.D.casa[0]-12,P.D.casa[1]-12],[P.D.casa[0]+12,P.D.casa[1]+12]]); P.renderPlan(); const pianta=await pngPianta(1600,'image/jpeg');
+    P.build(); const pin=pinCasa(); const asp=P.cam.aspect; P.cam.aspect=1.6; inquadra(c); P.cam.aspect=asp; const vista=png3D(1600,1000); P.scene.remove(pin);
     schede.push({c,i,pianta,vista}); await new Promise(r=>setTimeout(r,30)); }
+  C.casa=false;
   C.only=null; C.sel=keep.sel; P.S.pv=keep.pv; P.S.cut=keep.cut; P.cam.position.copy(keep.pos); P.ctl.target.copy(keep.tg); P.ctl.enabled=keep.ctl; P.update(true);
   const oggi=new Date().toLocaleDateString('it-IT');
   const sch=schede.map(({c,i,pianta,vista})=>{ const [la,lo]=llOf(c), co=col(i);
     return `<section class="pg"><header><span class="n" style="background:${co}">${i+1}</span><h2>${esc(c.nome||'Foto '+(i+1))}</h2></header>
     <div class="grid"><figure class="foto">${c.src?`<img src="${c.src}" alt="Foto ${i+1}">`:'<div class="nofoto">foto non collegata</div>'}</figure>
-    <div class="lato"><figure><img src="${pianta}" alt="Stralcio in pianta del cono ${i+1}"><figcaption>Stralcio in pianta: punto di ripresa e cono ottico</figcaption></figure>
-    <figure><img src="${vista}" alt="Vista 3D del cono ${i+1}"><figcaption>Il cono ottico sul modello 3D</figcaption></figure></div></div>
+    <div class="lato"><figure><img src="${pianta}" alt="Stralcio in pianta del cono ${i+1}"><figcaption>Stralcio in pianta: punto di ripresa e cono ottico rispetto alla casa</figcaption></figure>
+    <figure><img src="${vista}" alt="Vista 3D del cono ${i+1}"><figcaption>Il cono ottico sul modello 3D, con la casa</figcaption></figure></div></div>
     <p class="did"><b>Foto ${i+1}.</b> ${esc(c.nome||'')}${c.descr?' — '+esc(c.descr):''}. Ripresa verso ${dirWord(c.h)} (${Math.round(c.h)}°), apertura ${Math.round(c.fov)}°, ${c.livello==='fiume'?'dal letto del fiume':'da terra'}. Punto di ripresa: ${la.toFixed(6)}, ${lo.toFixed(6)} (WGS84).</p></section>`; }).join('');
   const html=`<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Piano fotografico · coni ottici · Pannarano</title>
 <style>@page{size:A4 landscape;margin:10mm}*{box-sizing:border-box}body{margin:0;font:13px/1.45 "Segoe UI",Arial,sans-serif;color:#1d2420;background:#eef0ee}
