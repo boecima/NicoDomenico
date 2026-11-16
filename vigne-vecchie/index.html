@@ -57,7 +57,7 @@ button[disabled]{opacity:.6;cursor:wait}
   if(qs.get('scaduta')) scrivi('La password è cambiata: inserirla di nuovo.',true);
   if(!('serviceWorker' in navigator)||!window.crypto||!crypto.subtle){
     $('entra').disabled=true; scrivi('Questo browser non può aprire la pagina protetta: usare Chrome, Edge, Firefox o Safari aggiornati, non in finestra anonima.',true); return; }
-  const pronto=navigator.serviceWorker.register('sw.js?v=2f997b538095',{scope:'./'}).then(()=>navigator.serviceWorker.ready);
+  const pronto=navigator.serviceWorker.register('sw.js?v=8a756b63cd16',{scope:'./'}).then(()=>navigator.serviceWorker.ready);
   function chiedi(dati){ return pronto.then(reg=>new Promise(ok=>{ const c=new MessageChannel(); c.port1.onmessage=e=>ok(e.data); reg.active.postMessage(dati,[c.port2]); })); }
   chiedi({tipo:'stato'}).then(r=>{ if(r&&r.chiave){ $('accesso').hidden=true; $('sbloccato').hidden=false; } }).catch(()=>{});
   $('apri').onclick=()=>{ location.href=dest; };

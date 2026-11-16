@@ -1,6 +1,6 @@
 /* Service worker della pagina riservata: decifra al volo i file in app/ (AES-256-GCM) con la chiave
    ricavata dalla password nella pagina di accesso. La chiave resta su questo dispositivo finche' si preme "Esci". */
-const VERSIONE='2f997b538095', DB='vigne-vecchie-chiave', ST='chiavi';
+const VERSIONE='8a756b63cd16', DB='vigne-vecchie-chiave', ST='chiavi';
 let CHIAVE=null;
 function idb(){ return new Promise((ok,ko)=>{ const r=indexedDB.open(DB,1); r.onupgradeneeded=()=>r.result.createObjectStore(ST); r.onsuccess=()=>ok(r.result); r.onerror=()=>ko(r.error); }); }
 async function leggi(){ try{ const d=await idb(); return await new Promise(ok=>{ const q=d.transaction(ST).objectStore(ST).get(VERSIONE); q.onsuccess=()=>ok(q.result||null); q.onerror=()=>ok(null); }); }catch(e){ return null; } }
