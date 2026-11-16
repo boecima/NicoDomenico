@@ -25,6 +25,9 @@ button[disabled]{opacity:.6;cursor:wait}
 .msg{min-height:1.5em;font-size:15px;color:var(--soft);margin:0}
 .msg.errore{color:var(--errore);font-weight:600}
 .nota{font-size:13.5px;color:var(--soft);margin:22px 0 0;padding-top:12px;border-top:1px solid var(--riga)}
+.senza{margin-top:20px;padding-top:14px;border-top:1px solid var(--riga);display:grid;gap:10px;justify-items:start}
+.barra{width:100%;height:12px;background:#dfe3e8}.barra i{display:block;height:100%;width:0;background:var(--blu);transition:width .2s}
+.pronta{color:#17603a!important;font-weight:600}
 [hidden]{display:none!important}
 </style>
 </head>
@@ -41,11 +44,16 @@ button[disabled]{opacity:.6;cursor:wait}
   </form>
 
   <div id="sbloccato" hidden>
-    <p class="msg">La pagina è già sbloccata su questo dispositivo.</p>
+    <p class="msg" id="msg2">La pagina è sbloccata su questo dispositivo.</p>
     <div class="riga" style="margin-top:10px"><button id="apri" type="button">Apri la pagina</button><button id="esci" class="sec" type="button">Esci</button></div>
+    <div class="senza">
+      <p class="msg" id="rete">Per usarla senza rete, scaricarla una volta su questo dispositivo (circa 38 MB, meglio con il Wi-Fi).</p>
+      <div class="barra" hidden id="barra"><i id="barra-i"></i></div>
+      <button id="scarica" class="sec" type="button">Scarica per l'uso senza rete</button>
+    </div>
   </div>
 
-  <p class="nota">I file sono cifrati: senza la password non si possono leggere. La chiave resta su questo dispositivo finché si preme «Esci».</p>
+  <p class="nota">I file sono cifrati: senza la password non si possono leggere. La chiave e l'eventuale copia scaricata restano su questo dispositivo finché si preme «Esci».</p>
 </main>
 <script>
 (function(){
@@ -57,11 +65,20 @@ button[disabled]{opacity:.6;cursor:wait}
   if(qs.get('scaduta')) scrivi('La password è cambiata: inserirla di nuovo.',true);
   if(!('serviceWorker' in navigator)||!window.crypto||!crypto.subtle){
     $('entra').disabled=true; scrivi('Questo browser non può aprire la pagina protetta: usare Chrome, Edge, Firefox o Safari aggiornati, non in finestra anonima.',true); return; }
-  const pronto=navigator.serviceWorker.register('sw.js?v=8a756b63cd16',{scope:'./'}).then(()=>navigator.serviceWorker.ready);
+  const pronto=navigator.serviceWorker.register('sw.js?v=adf85cefbe61',{scope:'./'}).then(()=>navigator.serviceWorker.ready);
   function chiedi(dati){ return pronto.then(reg=>new Promise(ok=>{ const c=new MessageChannel(); c.port1.onmessage=e=>ok(e.data); reg.active.postMessage(dati,[c.port2]); })); }
-  chiedi({tipo:'stato'}).then(r=>{ if(r&&r.chiave){ $('accesso').hidden=true; $('sbloccato').hidden=false; } }).catch(()=>{});
+  const rete=$('rete');
+  function pronta(si){ rete.classList.toggle('pronta',!!si); if(si){ rete.textContent='Pronta per l\'uso senza rete su questo dispositivo.'; $('scarica').textContent='Scarica di nuovo'; } }
+  function sbloccata(){ $('accesso').hidden=true; $('sbloccato').hidden=false; }
+  chiedi({tipo:'stato'}).then(r=>{ if(r&&r.chiave){ sbloccata(); pronta(r.pronta); } }).catch(()=>{});
+  $('scarica').onclick=()=>{ const b=$('scarica'); b.disabled=true; $('barra').hidden=false; rete.classList.remove('pronta'); rete.textContent='Scaricamento in corso… non chiudere questa pagina.';
+    try{ if(navigator.storage&&navigator.storage.persist) navigator.storage.persist(); }catch(e){}
+    pronto.then(reg=>{ const c=new MessageChannel(); c.port1.onmessage=e=>{ const d=e.data||{};
+      if(d.tipo==='avanzamento'){ $('barra-i').style.width=(100*d.fatti/d.totale)+'%'; rete.textContent='Scaricamento in corso: '+d.fatti+' di '+d.totale+' file. Non chiudere questa pagina.'; }
+      else if(d.tipo==='fine'){ b.disabled=false; if(d.ok){ pronta(true); } else { rete.textContent='Scaricamento non completato'+(d.mancanti?' ('+d.mancanti+' file mancanti)':'')+': controllare la rete e riprovare.'; b.textContent='Riprova'; } } };
+      reg.active.postMessage({tipo:'scarica'},[c.port2]); }); };
   $('apri').onclick=()=>{ location.href=dest; };
-  $('esci').onclick=()=>chiedi({tipo:'esci'}).then(()=>{ $('sbloccato').hidden=true; $('accesso').hidden=false; scrivi('Uscita eseguita: la pagina è di nuovo chiusa su questo dispositivo.'); });
+  $('esci').onclick=()=>chiedi({tipo:'esci'}).then(()=>{ $('sbloccato').hidden=true; $('accesso').hidden=false; scrivi('Uscita eseguita: la pagina è di nuovo chiusa su questo dispositivo e la copia scaricata è stata cancellata.'); });
   const hex=h=>new Uint8Array(h.match(/../g).map(x=>parseInt(x,16)));
   $('accesso').addEventListener('submit',async e=>{
     e.preventDefault(); const pw=$('pw').value; if(!pw) return;
@@ -74,7 +91,7 @@ button[disabled]{opacity:.6;cursor:wait}
       try{ await crypto.subtle.decrypt({name:'AES-GCM',iv:v.slice(0,12)},chiave,v.slice(12)); }
       catch(_){ scrivi('Password non corretta.',true); $('entra').disabled=false; $('pw').select(); return; }
       await chiedi({tipo:'chiave',chiave});
-      scrivi('Apertura della pagina…'); location.href=dest;
+      scrivi(''); $('entra').disabled=false; $('pw').value=''; sbloccata(); pronta(false);
     }catch(err){ scrivi('Non è stato possibile aprire la pagina: '+(err&&err.message||err),true); $('entra').disabled=false; }
   });
 })();

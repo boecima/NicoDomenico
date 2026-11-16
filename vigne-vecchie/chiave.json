@@ -1,1 +1,1 @@
-{"versione": "8a756b63cd16", "kdf": "PBKDF2-SHA256", "iterazioni": 600000, "salt": "9bd34ffca6cceb087dea5c87a89c4ab9", "verifica": "e15f1d96c48defeca8ca3645a09b8722ad602fb7e08e96c5f9c52765b4930673c330fec229af84e21759"}
+{"versione": "adf85cefbe61", "kdf": "PBKDF2-SHA256", "iterazioni": 600000, "salt": "e7097d753968721ce30dc2fc2dabd48a", "verifica": "8d0471317bd594c76771180972c20764c5935a8c943f9fe8e1d01cb8a1a71762b71c8716dd6ad7d89f00"}
